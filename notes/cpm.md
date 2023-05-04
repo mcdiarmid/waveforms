@@ -39,9 +39,9 @@ $$
 $\{h_{\underline{i}}\}$ is always described as a set of fractions with numerator $K_i$ and lowest common denominator $p$.
 
 $$
-q(t) \triangleq f(t) \;dt
+q(t) \triangleq f(t) dt
 , \quad\quad
-q(LT) = \int_{0}^{LT} f(t) \;dt = \frac{1}{2}
+q(LT) = \int_{0}^{LT} f(t) dt = \frac{1}{2}
 $$
 
 $L=1$ CPM are _full-response_ i.e. no inter-symbol-interference (ISI).
@@ -110,18 +110,18 @@ $$
 Furthermore, the phase state can be replaced with a modulo-$p$ look-up table
 
 $$
-\theta[v] \triangleq \frac{2\pi}{p} \times [v \!\!\!\! \mod p]
+\theta[v] \triangleq \frac{2\pi}{p} \times [v  \mod p]
 $$
 
 with phase state index
 
 $$
 I_{n-L} \triangleq
-\left(\sum_{i=-\infty}^{n-L} U_i K_{\underline{i}}\right) \!\!\!\! \mod p
+\left(\sum_{i=-\infty}^{n-L} U_i K_{\underline{i}}\right)  \mod p
 $$
 
 
-$$(I_{n-L},\; \alpha_{n-L+1},\; \cdots ,\; \alpha_{n-2},\; \alpha_{n-1})$$
+$$(I_{n-L}, \alpha_{n-L+1}, \cdots , \alpha_{n-2}, \alpha_{n-1})$$
 
 trellis with $N_S$ states
 
