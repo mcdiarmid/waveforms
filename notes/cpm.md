@@ -130,9 +130,8 @@ The input variable is the current symbol, $\alpha_n$.
 
 | FSM Memory                  | Length | Description |
 |  --                         | --     | --  |
-| $\underline{n}$             | 1      | This can be tracked as a variable, or by using a time-varying trellis. |
+| $\underline{n}$             | 1      | This can be tracked with a register, or by using a time-varying trellis definition. |
 | $\boldsymbol{\alpha_{n-1}}$ | $L$    | $(I_{n-L}, \alpha_{n-L+1}, \cdots , \alpha_{n-2}, \alpha_{n-1})$ |
-| | | |
 
 The number of finite states to fully describe the CPM signal with a trellis is
 
