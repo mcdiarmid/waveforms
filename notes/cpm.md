@@ -108,11 +108,11 @@ $$
 \pi \left( \sum_{i=-\infty}^{n-L}  h_{\underline{i}} \right)(M-1)
 $$
 
-As $n$ increments, the phase tilt $\phi_n$ increases by $-\pi h_{\underline{n}}(M-1)$, hence the recursive definition for _phase tilt_ mentioned previously.
+As $n$ increments, the phase tilt $\phi_n$ decreases by $\pi h_{\underline{n}}(M-1)$, hence the recursive definition for _phase tilt_ mentioned previously.
 
-Going back to the _phase state_ expression, despite this being a function of an infinite number of terms, it can be reduced to $p$ unique values when taking the modulo-$2\pi$ of the expression.
-The modulo-$2\pi$ operation is often expressed in literature as $R_{2\pi}[.]$
-A modulo-$p$ look-up table for the phase state can be defined as
+Going back to the _phase state_ expression, despite this being a function of an infinite number of terms, it can be reduced to $p$ unique values when taking the modulo $-2\pi$ of the expression.
+The modulo $-2\pi$ operation is often expressed in literature as $R_{2\pi}[.]$
+A modulo $-p$ look-up table for the phase state can be defined as
 
 $$
 \theta[v] \triangleq \frac{2\pi}{p} \times [v  \mod p]
@@ -152,7 +152,7 @@ The table below summarizes all mathematical symbols mentioned in the description
 | $\alpha_i$              | $i^{th}$ symbol   |
 | $M$                     | Symbol alphabet length |
 | $N_h$                   | Number of modulation indexes |
-| $\underline{i}$         | $i$ modulo-$N_h$  |
+| $\underline{i}$         | $i$ modulo $-N_h$  |
 | $h_{\underline{i}}$     | $i^{th}$ modulation index |
 | $p$                     | Lowest common denominator of $h_{\underline{i}}$ |
 | $K_{\underline{i}}$     | Numerator of $h_{\underline{i}}$ |
@@ -164,7 +164,7 @@ The table below summarizes all mathematical symbols mentioned in the description
 | $L$                     | Phase pulse length |
 | $U_i$                   | Alternate $M$-ary digit data symbol |
 | $I_{n-L}$               | Phase state index |
-| $R_{2\pi}[.]$           | Modulo-$2\pi$ function |
+| $R_{2\pi}[.]$           | Modulo $-2\pi$ function |
 
 To re-iterate, please check out Erik's thesis [[1]][reduced-cpm] for full explanations and references to source literature.
 This summary is primarily for my own understanding.
