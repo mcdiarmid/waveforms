@@ -168,6 +168,11 @@ The table below summarizes all mathematical symbols mentioned in the description
 To re-iterate, please check out Erik's thesis [[1]][reduced-cpm] for full explanations and references to source literature.
 This summary is primarily for my own understanding.
 
+## Generic CPM Simulation
+
+Lets implement and visualize what we've just described.
+For the sake of keeping this simple and readable, lets describe the above in a python script.
+
 ## References
 
 [[1]][reduced-cpm]
