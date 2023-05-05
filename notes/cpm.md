@@ -50,6 +50,7 @@ While the ISI of partial response increases detector complexity, the advantage o
 
 
 The phase signal can be split into three terms
+
 $$
 \psi(t; \boldsymbol{\alpha}) \triangleq 
 \theta(t; \boldsymbol{\alpha_n}) + \theta_{n-L} + \phi_{n}
