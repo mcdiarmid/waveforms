@@ -100,33 +100,47 @@ $$
 \pi \sum_{i=-\infty}^{n-L} \left(2U_i - (M-1)\right) h_{\underline{i}}
 $$
 
+This substitution of $U$ allows us to split the expression into two parts, a function of all data symbols prior to $L^{th}$ most recent, and an indefinitely increasing, data-independent offset that has been labelled as _phase tilt_.
 
 $$
 2\pi \left( \sum_{i=-\infty}^{n-L} U_i h_{\underline{i}} \right) - 
-\pi \left( \sum_{i=-\infty}^{n-L}  (M-1)h_{\underline{i}} \right)
+\pi \left( \sum_{i=-\infty}^{n-L}  h_{\underline{i}} \right)(M-1)
 $$
 
+As $n$ increments, the phase tilt $\phi_n$ increases by $-\pi h_{\underline{n}}(M-1)$, hence the recursive definition for _phase tilt_ mentioned previously.
 
-Furthermore, the phase state can be replaced with a modulo-$p$ look-up table
+Going back to the _phase state_ expression, despite this being a function of an infinite number of terms, it can be reduced to $p$ unique values when taking the modulo-$2\pi$ of the expression.
+The modulo-$2\pi$ operation is often expressed in literature as $R_{2\pi}[.]$
+A modulo-$p$ look-up table for the phase state can be defined as
 
 $$
 \theta[v] \triangleq \frac{2\pi}{p} \times [v  \mod p]
 $$
 
-with phase state index
+and the _phase state index_ can be defined as
 
 $$
 I_{n-L} \triangleq
 \left(\sum_{i=-\infty}^{n-L} U_i K_{\underline{i}}\right)  \mod p
 $$
 
+Breaking the original phase into the three aforementioned terms proves that CPM signals can be described as a trellis with finite states.
+The input variable is the current symbol, $\alpha_n$.
 
-$$(I_{n-L}, \alpha_{n-L+1}, \cdots , \alpha_{n-2}, \alpha_{n-1})$$
+| FSM Memory                  | Length | Description |
+|  --                         | --     | --  |
+| $\underline{n}$             | 1      | This can be tracked as a variable, or by using a time-varying trellis. |
+| $\boldsymbol{\alpha_{n-1}}$ | $L$    | $(I_{n-L}, \alpha_{n-L+1}, \cdots , \alpha_{n-2}, \alpha_{n-1})$ |
+| | | |
 
-trellis with $N_S$ states
+The number of finite states to fully describe the CPM signal with a trellis is
 
 $$N_S = pM^{L-1}$$
 
+as there are $M^{L-1}$ valid trellis paths from $p$ starting points.
+
+
+There were a lot of symbols used here!
 The table below summarizes all mathematical symbols mentioned in the description of general CPM.
 
 | Symbol                  | Description       |
@@ -142,10 +156,17 @@ The table below summarizes all mathematical symbols mentioned in the description
 | $p$                     | Lowest common denominator of $h_{\underline{i}}$ |
 | $K_{\underline{i}}$     | Numerator of $h_{\underline{i}}$ |
 | $q(t)$                  | Phase pulse       |
+| $f(t)$                  | Frequency pulse   |
 | $\theta(.)$             | Corrolative phase |
 | $\phi_n$                | Phase tilt |
 | $\boldsymbol{\alpha_n}$ | Corrolative state vector |
 | $L$                     | Phase pulse length |
+| $U_i$                   | Alternate $M$-ary digit data symbol |
+| $I_{n-L}$               | Phase state index |
+| $R_{2\pi}[.]$           | Modulo-$2\pi$ function |
+
+To re-iterate, please check out Erik's thesis [[1]][reduced-cpm] for full explanations and references to source literature.
+This summary is primarily for my own understanding.
 
 ## References
 
