@@ -3,7 +3,7 @@ from numpy.typing import NDArray
 import matplotlib.pyplot as plt
 
 
-DATA_BUFFER = b"Test CPM Payload!"
+DATA_BUFFER = b"\x1b\x1bHello!"
 
 
 def freq_pulse_soqpsk_mil(
@@ -40,13 +40,52 @@ class SOQPSKPrecoder:
 
 
 if __name__ == "__main__":
-
     # Bits of information to transmit
+    j = complex(0, 1)
+    sps = 8
+    mod_index = 1/2
     bit_array = np.unpackbits(np.frombuffer(DATA_BUFFER, dtype=np.uint8))
 
     # Convert bits to symbols
     symbol_precoder = SOQPSKPrecoder()
     symbols = symbol_precoder(bit_array)
 
+    # zero pad symbols to sps
+    interpolated_symbols = np.zeros(sps*(symbols.size+1), dtype=np.int8)
+    interpolated_symbols[sps::sps] = symbols
+
     # Generate pulse filter
-    pulse_filter = np.ones(1)  # Placeholder
+    pulse_filter = freq_pulse_soqpsk_mil(sps=sps)  # Placeholder
+    freq_pulses = np.convolve(interpolated_symbols, pulse_filter, mode="same")
+    phi = 2 * np.pi * mod_index * np.cumsum(freq_pulses)
+    modulated_signal = np.exp(j*phi)
+
+    # Display things
+    t = np.linspace(0, symbols.size, num=(symbols.size+1)*sps)
+    # t = range(phi.size)
+    f, (iq_ax, trajectory_ax) = plt.subplots(2, 1)
+    # filter_ax.plot(pulse_filter)
+    # filter_ax.plot(np.cumsum(pulse_filter))
+    # filter_ax.set_ylim(0, 0.5)
+    # filter_ax.grid(which="both", linestyle=":")
+
+    iq_ax.plot(t, modulated_signal.real, 'b-')
+    iq_ax.plot(t, modulated_signal.imag, 'r-')
+    iq_ax.set_ylabel("Amplitude [V]")
+    iq_ax.grid(which="both", linestyle=":")
+
+    trajectory_ax.plot(t, phi)
+    trajectory_ax.plot(t, phi % (2*np.pi))
+    trajectory_ax.set_xlabel("Symbol time [t/T]")
+    trajectory_ax.set_ylabel("Phase [rad]")
+    trajectory_ax.grid(which="both", linestyle=":")
+    
+    pulse_ax = trajectory_ax.twinx()
+    pulse_ax.plot(t, freq_pulses, 'g-')
+    pulse_ax.set_ylabel("Frequency pulse")
+
+    f2, eye_ax = plt.subplots(1)
+    eye_ax.plot(modulated_signal.real, modulated_signal.imag, 'bo--')
+    eye_ax.set_ylabel("Imaginary")
+    eye_ax.set_ylabel("Real")
+    eye_ax.grid(which="both", linestyle=":")
