@@ -3,19 +3,22 @@
 ## SOQPSK-MIL
 
 $$
+\begin{equation}
 f_{MIL}(t) = 
+
 
 \begin{cases}
 \frac{1}{2T}, & 0 \le t \lt T \\
 0, & \text{otherwise}
 \end{cases}
+\end{equation}
 $$
 
 ## SOQPSK-TG
 
 $$
 
-f_{TG}(t) = 
+w_{TG}(t) = 
 
 \begin{cases}
 1, &
