@@ -4,6 +4,7 @@ Here we will take a brief look at a ternary family of CPM known as Shaped-Offset
 
 ## Bit to Symbol Precoder
 The symbol precoder can be described with the following recursive expression
+
 $$
 \alpha_i = (-1)^{i+1}(2b_{i-1}-1)(b_{i}-b_{i-2})
 $$
