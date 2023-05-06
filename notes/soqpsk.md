@@ -41,9 +41,9 @@ where windowing function $w(\tau)$ is
 
 | $w(\tau)$ | Case |
 | ---- | ------ |
-| 1 | $ 0 \le \vert \tau \vert \lt T_1$ |
+| 1    | $0 \le \vert \tau \vert \lt T_1$ |
 | $\frac{1}{2} + \frac{1}{2} \cos \left( \frac{\pi}{T_2} (\tau - T_1 ) \right)$ | $T_1 \le \vert \tau \vert \le T_1 + T_2$ |
-| 0 | $ T_1 + T_2 \lt \vert \tau \vert$ 
+| 0    | $T_1 + T_2 \lt \vert \tau \vert$ |
 
 The substitution of $\tau = t/2T$ has been used to simplify the above expressions.
 $f_{SOQPSK}(\tau)$ can in fact also be used to describe SOQPSK-MIL in the special case where $T_1 = 1/2$, $T_2 = 0$, and $B = 0$.
