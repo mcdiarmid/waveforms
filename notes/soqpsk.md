@@ -46,15 +46,15 @@ where windowing function $w(\tau)$ is
 | 0    | $T_1 + T_2 \lt \vert \tau \vert$ |
 
 The substitution of $\tau = t/2T$ has been used to simplify the above expressions.
-$f_{SOQPSK}(\tau)$ can in fact also be used to describe SOQPSK-MIL in the special case where $T_1 = 1/2$, $T_2 = 0$, and $B = 0$.
+It appears that $f_{SOQPSK}(\tau)$ can also be used to describe SOQPSK-MIL in the special case where $T_1 = 1/4$, $T_2 = 0$, and $B = 0$, the expression might require further manipulation however.
 The constants used in the description of SOQPSK have values summarized below
 
 | Constant | SOQPSK-A | SOQPSK-B | SOQPSK-TG | SOQPSK-MIL |
 | -------- | ---- | ---- | ---- | ---- |
-| $B$      | 1.35 | 1.45 | 1.25 |  0  |
-| $T_1$    | 1.4  | 2.8  | 1.5  |  $1/2$  |
-| $T_2$    | 0.6  | 1.2  | 0.5  |  0  |
-| $\rho$   | 1.0  | 0.5  | 0.7  |  0  |
+| $B$      | 1.35 | 1.45 | 1.25 |  0    |
+| $T_1$    | 1.4  | 2.8  | 1.5  |  0.25 |
+| $T_2$    | 0.6  | 1.2  | 0.5  |  0    |
+| $\rho$   | 1.0  | 0.5  | 0.7  |  0    |
 
 $A$ is not described in the table, as in literature it specifies that $A$ is set such that the the integral of the frequency pulse is 1/2. 
 This is likely for the discrete mathematical implementation of SOQPSK transmitters and receivers on FPGAs.
