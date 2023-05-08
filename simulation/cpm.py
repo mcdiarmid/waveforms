@@ -1,3 +1,4 @@
+from typing import List
 import random
 
 import numpy as np
@@ -5,9 +6,12 @@ from numpy.typing import NDArray
 import matplotlib.pyplot as plt
 
 
-DATA_HEADER = b"\x1b\x1bHello World!"
-DATA_EXTRA = bytes([random.randint(0,0xff) for i in range(40)])
+# DATA_HEADER = b"\x1b\x1bHello World!"
+DATA_HEADER = bytes([random.randint(0,0xff) for i in range(16)])
+DATA_EXTRA = bytes([random.randint(0,0xff) for i in range(400)])
 DATA_BUFFER = DATA_HEADER + DATA_EXTRA
+j = complex(0, 1)
+
 
 def freq_pulse_soqpsk_tg(
     T_1: float = 1.5,
@@ -18,7 +22,7 @@ def freq_pulse_soqpsk_tg(
 ) -> NDArray[np.float64]:
     # Calculate w.r.t. normalized time
     tau_max = (T_1 + T_2)*2
-    t_norm = np.linspace(-tau_max, tau_max, num=int(tau_max*sps*2))
+    t_norm = np.linspace(-tau_max, tau_max, num=int(tau_max*sps*2), dtype=np.float64)
     # Frequency pulse
     g = np.cos(np.pi*rho*b*t_norm/2)/(1-np.power(rho*b*t_norm, 2)) * np.sinc(b*t_norm/2)
     # Windowing function
@@ -41,6 +45,16 @@ def freq_pulse_soqpsk_mil(
     return freq_pulse_soqpsk_tg(T_1=0.25, T_2=0, b=0, rho=0, sps=sps)
 
 
+def db_average_arrays(
+    arrays: List[NDArray[np.float64]]
+) -> np.ndarray:
+    return 10 * np.log10(np.average(np.power(10, np.array(arrays) / 10), axis=0))
+
+
+def apply_vbw_smoothing(x: NDArray[np.float64], w: int = 10) -> NDArray[np.float64]:
+    return np.convolve(x, np.ones(w)/w, mode='same')
+
+
 class SOQPSKPrecoder:
     def __init__(self) -> None:
         self.i = 0
@@ -60,9 +74,8 @@ class SOQPSKPrecoder:
 
 if __name__ == "__main__":
     # Bits of information to transmit
-    j = complex(0, 1)
-    symbol_rate = 1e3
-    sps = 64
+    sps = 100
+    fft_size = 1024
     mod_index = 1/2
     bit_array = np.unpackbits(np.frombuffer(DATA_BUFFER, dtype=np.uint8))
 
@@ -76,11 +89,11 @@ if __name__ == "__main__":
     interpolated_symbols[sps::sps] = symbols
 
     # Generate pulse filter
-    fig_eye, eye_const_axes = plt.subplots(3,2)
+    fig_eye, eye_const_axes = plt.subplots(2, 2)
     # constellation_ax.set_ylabel("Imaginary")
     # constellation_ax.set_xlabel("Real")
 
-    # Set-up some plots
+    # Set-up some plotss
     fig_time, (symbol_ax, trajectory_ax, iq_ax) = plt.subplots(3, 1)
     symbol_ax.set_ylabel("Symbols")
     symbol_ax.stem(range(symbols.size+2), [0, *symbols, 0], linefmt='ko')
@@ -92,12 +105,22 @@ if __name__ == "__main__":
     trajectory_ax.set_yticklabels([rf"$\frac{{{2*i+1}\pi}}{{4}}$" for i in range(4)])
 
     # Generate and plot SOQPSK-MIL and SOQPSK-TG modulated data
-    pulse_filter_fns = freq_pulse_soqpsk_mil, freq_pulse_soqpsk_tg
+    pulse_filter_fns = freq_pulse_soqpsk_tg, freq_pulse_soqpsk_mil
     for n, pulse_filter_fn in enumerate(pulse_filter_fns):
+        # Modulate the input symbols
         pulse_filter = pulse_filter_fn(sps=sps)
         freq_pulses = np.convolve(interpolated_symbols, pulse_filter, mode="same")
         phi = 2 * np.pi * mod_index * np.cumsum(freq_pulses) / sps + np.pi/4
         modulated_signal = np.exp(j*phi)
+
+        # fft: NDArray[np.float64] = np.fft.fft(modulated_signal)
+        decim = int(sps/5)  # FFT between -2.5 to 2.5 x bitrate frequency
+        fft_size = int(modulated_signal.size/4)
+        psd = db_average_arrays([
+            10*np.log10(np.power(np.abs(np.fft.fft(modulated_signal[i*fft_size::decim], n=fft_size)), 2) * (sps/decim) / fft_size)
+            for i in range(modulated_signal.size//fft_size)
+        ])
+        bins = np.fft.fftfreq(fft_size, d=1/(sps/decim))
 
         # Display things
         iq_ax.plot(t, modulated_signal.real, linestyle='-')
@@ -105,9 +128,10 @@ if __name__ == "__main__":
         symbol_ax.plot(t, freq_pulses, linestyle='-')
         trajectory_ax.plot(t%8, phi % (2*np.pi), linestyle='', marker='.', markersize=0.5)
         # trajectory_ax.plot(t, phi, markersize=2)
-        eye_const_axes[0, n].plot(modulated_signal.real, modulated_signal.imag, linestyle='--')
-        eye_const_axes[1, n].plot(t%4, modulated_signal.real, marker='.', linestyle='', markersize=0.5)
-        eye_const_axes[2, n].plot((t+0.5)%4, modulated_signal.imag, marker='.', linestyle='', markersize=0.5)
+        eye_const_axes[0, 0].plot((t+0.0)%4, modulated_signal.real, marker='.', linestyle='', markersize=0.2)
+        eye_const_axes[1, 0].plot((t+0.5)%4, modulated_signal.imag, marker='.', linestyle='', markersize=0.2)
+        eye_const_axes[0, 1].plot(modulated_signal.real, modulated_signal.imag, linestyle='-')
+        eye_const_axes[1, 1].plot(bins, psd, marker='.', linestyle='', markersize=0.5)
 
     # Show plots
     symbol_ax.grid(which="both", linestyle=":")
@@ -120,4 +144,7 @@ if __name__ == "__main__":
     for ax_row in eye_const_axes:
         for ax in ax_row:
             ax.grid(which="both", linestyle=":")
+    
+    eye_const_axes[1, 1].set_ylabel('Amplitude [dBc]')
+    eye_const_axes[1, 1].set_xlabel('Frequency [bit rates]')
     fig_eye.show()
