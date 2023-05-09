@@ -1,9 +1,17 @@
 import random
 
 import numpy as np
-from numpy.typing import NDArray
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
+
+from waveforms.cpm.soqpsk import (
+    SOQPSKPrecoder,
+    freq_pulse_soqpsk_a,
+    # freq_pulse_soqpsk_b,
+    freq_pulse_soqpsk_tg,
+    freq_pulse_soqpsk_mil,
+)
+from waveforms.cpm.modulate import *
 
 
 DATA_HEADER = b"\x1b\x1bHello World!"
@@ -12,65 +20,10 @@ DATA_BUFFER = DATA_HEADER + DATA_EXTRA
 j = complex(0, 1)
 
 
-def freq_pulse_soqpsk_tg(
-    T_1: float = 1.5,
-    T_2: float = 0.5,
-    rho: float = 0.7,
-    b: float = 1.25,
-    sps: int = 8,
-) -> NDArray[np.float64]:
-    # Calculate w.r.t. normalized time
-    tau_max = (T_1 + T_2)*2
-    t_norm = np.linspace(-tau_max, tau_max, num=int(tau_max*sps*2), dtype=np.float64)
-    # Frequency pulse
-    g = np.cos(np.pi*rho*b*t_norm/2)/(1-np.power(rho*b*t_norm, 2)) * np.sinc(b*t_norm/2)
-    # Windowing function
-    if T_2 > 0:
-        w = (1+np.cos(np.pi*(t_norm/2-T_1)/T_2))/2
-    else:
-        w = np.ones(t_norm.shape)
-    w[np.where(np.abs(t_norm) < 2*T_1)] = 1
-    w[np.where(np.abs(t_norm) > 2*(T_1+T_2))] = 0
-    # Calculate A that yeilds frequency pulse with integral=1/2
-    a_scalar = sps / (np.cumsum(g*w)[-1] * 2)
-    # Scaled & windowed frequency pulse
-    return a_scalar * g * w
-
-
-def freq_pulse_soqpsk_a(
-    sps: int = 8
-) -> NDArray[np.float64]:
-    return freq_pulse_soqpsk_tg(b=1.35, T_1=1.4, T_2=0.6, rho=1, sps=sps)
-
-
-def freq_pulse_soqpsk_mil(
-    sps: int = 8
-) -> NDArray[np.float64]:
-    # return np.ones(sps)/2
-    return freq_pulse_soqpsk_tg(T_1=0.25, T_2=0, b=0, rho=0, sps=sps)
-
-
-class SOQPSKPrecoder:
-    def __init__(self) -> None:
-        self.i = 0
-        self.mem = 0, 0
-    
-    def __call__(
-        self,
-        bits: NDArray[np.uint8],
-    ) -> NDArray[np.int8]:
-        a = np.concatenate((self.mem, bits), dtype=np.int8)
-        i_arr = np.ones(bits.shape, dtype=np.int8)
-        i_arr[self.i::2] = -1
-        self.i = (self.i + len(bits)) % 2
-        self.mem = a[-2:]
-        return i_arr*(2*a[1:-1] - 1)*(a[2:] - a[:-2])
-
-
 if __name__ == "__main__":
     # Bits of information to transmit
-    sps = 10
-    fft_size = 2**11
+    sps = 8
+    fft_size = 2**9
     mod_index = 1/2
     bit_array = np.unpackbits(np.frombuffer(DATA_BUFFER, dtype=np.uint8))
 
@@ -105,6 +58,7 @@ if __name__ == "__main__":
 
     # Generate and plot SOQPSK-MIL and SOQPSK-TG modulated data
     pulses_colors_labels = (
+        # (freq_pulse_soqpsk_b, 'green', 'SOQPSK-B'),
         (freq_pulse_soqpsk_tg, 'royalblue', 'SOQPSK-TG'),
         (freq_pulse_soqpsk_a, 'darkorange', 'SOQPSK-A'),
         (freq_pulse_soqpsk_mil, 'crimson', 'SOQPSK-MIL'),
@@ -162,6 +116,7 @@ if __name__ == "__main__":
             modulated_signal,
             NFFT=fft_size,
             Fs=sps,
+            color=color,
         )
 
     # Format plots
@@ -197,4 +152,6 @@ if __name__ == "__main__":
     psd_ax.set_ylim([-100, 20])
     psd_ax.set_yticks([(i-10)*10 for i in range(12)])
     psd_ax.set_xlim([-2.5, 2.5])
+    psd_ax.set_xticks(np.linspace(-2.5, 2.5, num=11))
+    fig_eye.tight_layout()
     fig_eye.show()
