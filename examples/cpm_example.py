@@ -56,7 +56,7 @@ if __name__ == "__main__":
         )
 
         modulo = 4
-        q_symbol_offset = 0.5
+        q_symbol_offset = 0.0
         for i in range((normalized_time.size-1)//(sps*modulo)):
             idx_start_i = i*sps*modulo
             idx_start_q = idx_start_i + int(sps*q_symbol_offset)
