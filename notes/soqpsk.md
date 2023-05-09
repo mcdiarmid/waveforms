@@ -47,7 +47,7 @@ where windowing function $w(\tau)$ is
 
 The substitution of $\tau = t/2T$ has been used to simplify the above expressions.
 It appears that $f_{SOQPSK}(\tau)$ can also be used to describe SOQPSK-MIL in the special case where $T_1 = 1/4$, $T_2 = 0$, and $B = 0$, the expression might require further manipulation however.
-The constants used in the description of SOQPSK have values summarized below
+The constants used in the description of SOQPSK have values summarized below [[1]][soqpsk-itc].
 
 | Constant | SOQPSK-A | SOQPSK-B | SOQPSK-TG | SOQPSK-MIL |
 | -------- | ---- | ---- | ---- | ---- |
@@ -58,3 +58,24 @@ The constants used in the description of SOQPSK have values summarized below
 
 $A$ is not described in the table, as in literature it specifies that $A$ is set such that the the integral of the frequency pulse is 1/2. 
 This is likely for the discrete mathematical implementation of SOQPSK transmitters and receivers on FPGAs.
+
+## SOQPSK Variant Comparison
+The following plot has been generated through a simulation that can be found in [examples/cmp_example.py](../examples/cpm_example.py).
+8 samples per symbol were used, and random data was modulated.
+
+![SOQPSK Variant Comparison](images/soqpsk_waveforms1.png)
+
+SOQPSK-TG, SOQPSK-A, and SOQPSK-MIL have their eye-diagrams, constellations, and power spectral density (PSD) plotted in blue, orange, and red respectively.
+We can see that the full-response nature of SOQPSK-MIL (first described in the 1980's) gives it a very simple eye-diagram.
+The partial-response nature of SOQPSK-A and SOQPSK-TG can be seen, with different paths between key points on the eye-diagram.
+The biggest difference can be seen when looking at spectral efficiency.
+SOQPSK-A and SOQPSK-TG's enhanced pulse shaping suppresses out-of-band emissions by many orders of magnitude when compared to SOQPSK-MIL.
+SOQPSK-TG was adopted by the IRIG106 set of standards for its incredible spectral efficiency, and superior detection efficiency when compared to SOQPSK-A.
+
+
+## References
+
+[[1]][soqpsk-itc]
+Reduced Complexity Detection Methods for Continuous Phase Modulation.
+
+[soqpsk-itc]: https://www.quasonix.com/files/soqpsk-itc-paper.pdf
