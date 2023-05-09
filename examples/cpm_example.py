@@ -56,19 +56,17 @@ if __name__ == "__main__":
         )
 
         modulo = 4
-        q_symbol_offset = 0.0
         for i in range((normalized_time.size-1)//(sps*modulo)):
-            idx_start_i = i*sps*modulo
-            idx_start_q = idx_start_i + int(sps*q_symbol_offset)
+            idx_start = i*sps*modulo
             eye_real_ax.plot(
-                (normalized_time[idx_start_i:idx_start_i+sps*modulo]+0.0)%modulo,
-                modulated_signal.real[idx_start_i:idx_start_i+sps*modulo],
+                (normalized_time[idx_start:idx_start+sps*modulo+1]-normalized_time[idx_start]),
+                modulated_signal.real[idx_start:idx_start+sps*modulo+1],
                 linewidth=0.3,
                 color=color,
             )
             eye_imag_ax.plot(
-                (normalized_time[idx_start_q:idx_start_q+sps*modulo]-q_symbol_offset)%modulo,
-                modulated_signal.imag[idx_start_q:idx_start_q+sps*modulo],
+                (normalized_time[idx_start:idx_start+sps*modulo+1]-normalized_time[idx_start]),
+                modulated_signal.imag[idx_start:idx_start+sps*modulo+1],
                 linewidth=0.3,
                 color=color,
             )
