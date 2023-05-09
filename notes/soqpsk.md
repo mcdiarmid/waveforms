@@ -60,7 +60,7 @@ $A$ is not described in the table, as in literature it specifies that $A$ is set
 This is likely for the discrete mathematical implementation of SOQPSK transmitters and receivers on FPGAs.
 
 ## SOQPSK Variant Comparison
-The following plot has been generated through a simulation that can be found in [examples/cmp_example.py](../examples/cpm_example.py).
+The following plot has been generated through a simulation that can be found in [examples/soqpsk_example.py](../examples/soqpsk_example.py).
 8 samples per symbol were used, and random data was modulated.
 
 ![SOQPSK Variant Comparison](images/soqpsk_waveforms1.png)

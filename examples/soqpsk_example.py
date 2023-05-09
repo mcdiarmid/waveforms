@@ -86,7 +86,7 @@ if __name__ == "__main__":
     for ax_row in eye_const_axes:
         for ax in ax_row:
             ax.grid(which="both", linestyle=":")
-    
+
     eye_real_ax.set_ylabel("In-phase")
     eye_imag_ax.set_ylabel("Quadrature")
     eye_imag_ax.set_xlabel("Symbol Time [t/T]")
