@@ -76,6 +76,6 @@ SOQPSK-TG was adopted by the IRIG106 set of standards for its incredible spectra
 ## References
 
 [[1]][soqpsk-itc]
-Reduced Complexity Detection Methods for Continuous Phase Modulation.
+AN ENHANCED, CONSTANT ENVELOPE, INTEROPERABLE SHAPED OFFSET QPSK (SOQPSK) WAVEFORM FOR IMPROVED SPECTRAL EFFICIENCY
 
 [soqpsk-itc]: https://www.quasonix.com/files/soqpsk-itc-paper.pdf
