@@ -65,12 +65,12 @@ The following plot has been generated through a simulation that can be found in 
 
 ![SOQPSK Variant Comparison](../../images/soqpsk_waveforms1.png)
 
-SOQPSK-TG, SOQPSK-A, and SOQPSK-MIL have their eye-diagrams, constellations, and power spectral density (PSD) plotted in blue, orange, and red respectively.
+SOQPSK-TG, SOQPSK-A, SOQPSK-B, and SOQPSK-MIL have their eye-diagrams, pulse response, and power spectral density (PSD) plotted.
 We can see that the full-response nature of SOQPSK-MIL (first described in the 1980's) gives it a very simple eye-diagram.
-The partial-response nature of SOQPSK-A and SOQPSK-TG can be seen, with different paths between key points on the eye-diagram.
+The partial-response nature of SOQPSK-A, -B, and -TG can be seen, with different paths between key points on the eye-diagram.
 The biggest difference can be seen when looking at spectral efficiency.
-SOQPSK-A and SOQPSK-TG's enhanced pulse shaping suppresses out-of-band emissions by many orders of magnitude when compared to SOQPSK-MIL.
-SOQPSK-TG was adopted by the IRIG106 set of standards for its incredible spectral efficiency, and superior detection efficiency when compared to SOQPSK-A.
+Enhanced pulse shaping suppresses out-of-band emissions by many orders of magnitude when compared to SOQPSK-MIL.
+SOQPSK-TG was adopted by the IRIG106 set of standards for its incredible spectral efficiency, and superior detection efficiency when compared to the other variants waveforms.
 
 
 ## References

@@ -14,6 +14,7 @@ def cpm_modulate(
     sps: int = 8,
 ) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
     """
+    Generic CPM Modulation
 
     :param symbols: Array of symbols (already mapped from bits)
     :param mod_index: Modulation index, or sequence of modulation indicies

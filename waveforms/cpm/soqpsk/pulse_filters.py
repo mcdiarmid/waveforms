@@ -28,7 +28,7 @@ def freq_pulse_soqpsk(
             (np.abs(t_norm) <= tau_max)
         )
         w[idx] = (1 + np.cos(np.pi * (t_norm[idx] / 2 - T_1) / T_2)) / 2
-        w[np.where(np.abs(t_norm) > 2 * (T_1 + T_2))] = 0
+        w[np.where(np.abs(t_norm) > tau_max)] = 0
 
     a_scalar = sps / (np.cumsum(g*w)[-1] * 2)
     return a_scalar * g * w

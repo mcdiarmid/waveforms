@@ -1,12 +1,14 @@
 import random
 
 import numpy as np
+from numpy.typing import NDArray
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 
 from waveforms.cpm.soqpsk import (
     SOQPSKPrecoder,
     freq_pulse_soqpsk_a,
+    freq_pulse_soqpsk_b,
     freq_pulse_soqpsk_tg,
     freq_pulse_soqpsk_mil,
 )
@@ -36,24 +38,28 @@ if __name__ == "__main__":
     fig_eye, eye_const_axes = plt.subplots(2, 2)
     eye_real_ax: Axes = eye_const_axes[0, 0]
     eye_imag_ax: Axes = eye_const_axes[1, 0]
-    constel_ax: Axes = eye_const_axes[0, 1]
+    pulse_ax: Axes = eye_const_axes[0, 1]
     psd_ax: Axes = eye_const_axes[1, 1]
+
+    fig_constel, constel_ax = plt.subplots(1, 1)
 
     # Simulate the following SOQPSK Waveforms
     pulses_colors_labels = (
-        (freq_pulse_soqpsk_tg, 'royalblue', 'SOQPSK-TG'),
-        (freq_pulse_soqpsk_a, 'darkorange', 'SOQPSK-A'),
-        (freq_pulse_soqpsk_mil, 'crimson', 'SOQPSK-MIL'),
+        (freq_pulse_soqpsk_b(sps=sps), 'lightgrey', 'B'),
+        (freq_pulse_soqpsk_tg(sps=sps), 'royalblue', 'TG'),
+        (freq_pulse_soqpsk_a(sps=sps), 'darkorange', 'A'),
+        (freq_pulse_soqpsk_mil(sps=sps), 'crimson', 'MIL'),
     )
-    for pulse_filter_fn, color, label in pulses_colors_labels:
+    pulse_pad = 1
+    for pulse_filter, color, label in pulses_colors_labels:
         # Modulate the input symbols
-        pulse_filter = pulse_filter_fn(sps=sps)
         normalized_time, modulated_signal = cpm_modulate(
             symbols=symbols,
             mod_index=mod_index,
             pulse_filter=pulse_filter,
             sps=sps,
         )
+        normalized_time /= 2  # SOQPSK symbols are spaced at T/2
 
         modulo = 4
         for i in range((normalized_time.size-1)//(sps*modulo)):
@@ -74,12 +80,43 @@ if __name__ == "__main__":
             modulated_signal.real,
             modulated_signal.imag,
             color=color,
+            label=label,
         )
         psd_ax.psd(
             modulated_signal,
             NFFT=fft_size,
             Fs=sps,
             color=color,
+            label=label,
+        )
+
+        # Plot frequency and pulses
+        pulse_length = pulse_filter.size / sps
+        padded_pulse: NDArray[np.float64] = np.concatenate((
+            np.zeros(pulse_pad*sps),
+            pulse_filter,
+            np.zeros(pulse_pad*sps),
+        ))
+        pulse_t = np.linspace(
+            -(pulse_length/2 + pulse_pad),
+            +(pulse_length/2 + pulse_pad),
+            num=padded_pulse.size
+        )
+        pulse_ax.plot(
+            pulse_t,
+            padded_pulse,
+            linestyle='-',
+            linewidth=2,
+            color=color,
+            label=rf'{label} $f(t)$',
+        )
+        pulse_ax.plot(
+            pulse_t,
+            np.cumsum(padded_pulse) / sps,
+            linestyle='-.',
+            linewidth=1,
+            color=color,
+            label=rf'{label} $q(t)$',
         )
 
     # Format graphs before showing them
@@ -87,18 +124,27 @@ if __name__ == "__main__":
         for ax in ax_row:
             ax.grid(which="both", linestyle=":")
 
-    eye_real_ax.set_ylabel("In-phase")
-    eye_imag_ax.set_ylabel("Quadrature")
+    eye_real_ax.set_title("Eye Diagram (In-phase)")
+    eye_real_ax.set_ylabel("Amplitude")
     eye_imag_ax.set_xlabel("Symbol Time [t/T]")
 
-    constel_ax.set_xlabel("In-phase")
-    constel_ax.set_ylabel("Quadrature")
+    eye_imag_ax.set_title("Eye Diagram (Quadrature)")
+    eye_imag_ax.set_ylabel("Amplitude")
+    eye_imag_ax.set_xlabel("Symbol Time [t/T]")
 
+    pulse_ax.set_title("Phase and Frequency Pulses")
+    pulse_ax.set_ylabel("Amplitude")
+    pulse_ax.set_xlabel("Symbol Time [t/T]")
+    pulse_ax.set_ylim(-0.1, 0.7)
+    pulse_ax.legend(loc="upper center", fontsize=7, ncol=4)
+
+    psd_ax.set_title("Power Spectral Density")
     psd_ax.set_ylabel('Amplitude [dBc]')
     psd_ax.set_xlabel('Frequency [bit rates]')
     psd_ax.set_ylim([-100, 20])
     psd_ax.set_yticks([(i-10)*10 for i in range(12)])
     psd_ax.set_xlim([-2.5, 2.5])
+    psd_ax.legend(loc="upper center", fontsize=7, ncol=4)
     psd_ax.set_xticks(np.linspace(-2.5, 2.5, num=11))
     fig_eye.tight_layout()
     fig_eye.show()
