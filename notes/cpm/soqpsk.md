@@ -66,6 +66,7 @@ The following plot has been generated through a simulation that can be found in 
 ![SOQPSK Variant Comparison](../../images/soqpsk_waveforms1.png)
 
 SOQPSK-TG, SOQPSK-A, SOQPSK-B, and SOQPSK-MIL have their eye-diagrams, pulse response, and power spectral density (PSD) plotted.
+The MIL frequency pulse has been zero-padded for illustration purposes, all other pulses are full-duration.
 We can see that the full-response nature of SOQPSK-MIL (first described in the 1980's) gives it a very simple eye-diagram.
 The partial-response nature of SOQPSK-A, -B, and -TG can be seen, with different paths between key points on the eye-diagram.
 The biggest difference can be seen when looking at spectral efficiency.

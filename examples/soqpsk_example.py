@@ -4,6 +4,7 @@ import numpy as np
 from numpy.typing import NDArray
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
+from matplotlib.ticker import MultipleLocator
 
 from waveforms.cpm.soqpsk import (
     SOQPSKPrecoder,
@@ -26,6 +27,7 @@ if __name__ == "__main__":
     sps = 8
     fft_size = 2**9
     mod_index = 1/2
+    pulse_pad = 0.5
 
     # Bits of information to transmit
     bit_array = np.unpackbits(np.frombuffer(DATA_BUFFER, dtype=np.uint8))
@@ -50,7 +52,6 @@ if __name__ == "__main__":
         (freq_pulse_soqpsk_a(sps=sps), 'darkorange', 'A'),
         (freq_pulse_soqpsk_mil(sps=sps), 'crimson', 'MIL'),
     )
-    pulse_pad = 1
     for pulse_filter, color, label in pulses_colors_labels:
         # Modulate the input symbols
         normalized_time, modulated_signal = cpm_modulate(
@@ -92,14 +93,24 @@ if __name__ == "__main__":
 
         # Plot frequency and pulses
         pulse_length = pulse_filter.size / sps
-        padded_pulse: NDArray[np.float64] = np.concatenate((
-            np.zeros(pulse_pad*sps),
-            pulse_filter,
-            np.zeros(pulse_pad*sps),
-        ))
+        if label == "MIL":
+            padded_pulse: NDArray[np.float64] = np.concatenate((
+                np.zeros(int(pulse_pad*sps)),
+                pulse_filter,
+                np.zeros(int(pulse_pad*sps)),
+            ))
+            t_lim = (
+                -(pulse_length/2 + pulse_pad),
+                +(pulse_length/2 + pulse_pad)
+            )
+        else:
+            padded_pulse = pulse_filter
+            t_lim = (
+                -(pulse_length/2),
+                +(pulse_length/2)
+            )
         pulse_t = np.linspace(
-            -(pulse_length/2 + pulse_pad),
-            +(pulse_length/2 + pulse_pad),
+            *t_lim,
             num=padded_pulse.size
         )
         pulse_ax.plot(
@@ -124,27 +135,33 @@ if __name__ == "__main__":
         for ax in ax_row:
             ax.grid(which="both", linestyle=":")
 
+    # Format Eye diagrams
     eye_real_ax.set_title("Eye Diagram (In-phase)")
     eye_real_ax.set_ylabel("Amplitude")
-    eye_imag_ax.set_xlabel("Symbol Time [t/T]")
+    eye_real_ax.set_xlabel("Normalized Time [t/T]")
 
     eye_imag_ax.set_title("Eye Diagram (Quadrature)")
     eye_imag_ax.set_ylabel("Amplitude")
-    eye_imag_ax.set_xlabel("Symbol Time [t/T]")
+    eye_imag_ax.set_xlabel("Normalized Time [t/T]")
 
+    # Format pulse diagram
     pulse_ax.set_title("Phase and Frequency Pulses")
     pulse_ax.set_ylabel("Amplitude")
-    pulse_ax.set_xlabel("Symbol Time [t/T]")
+    pulse_ax.set_xlabel("Normalized Time [t/T]")
     pulse_ax.set_ylim(-0.1, 0.7)
-    pulse_ax.legend(loc="upper center", fontsize=7, ncol=4)
+    pulse_ax.set_xlim([-8, 8])
+    pulse_ax.xaxis.set_major_locator(MultipleLocator(2))
+    pulse_ax.legend(loc="upper center", fontsize=8, ncol=4)
 
+    # Format the PSD plot
     psd_ax.set_title("Power Spectral Density")
     psd_ax.set_ylabel('Amplitude [dBc]')
     psd_ax.set_xlabel('Frequency [bit rates]')
     psd_ax.set_ylim([-100, 20])
-    psd_ax.set_yticks([(i-10)*10 for i in range(12)])
+    psd_ax.yaxis.set_major_locator(MultipleLocator(10))
     psd_ax.set_xlim([-2.5, 2.5])
-    psd_ax.legend(loc="upper center", fontsize=7, ncol=4)
-    psd_ax.set_xticks(np.linspace(-2.5, 2.5, num=11))
+    psd_ax.legend(loc="upper center", fontsize=8, ncol=4)
+    psd_ax.xaxis.set_major_locator(MultipleLocator(0.5))
+
     fig_eye.tight_layout()
     fig_eye.show()
