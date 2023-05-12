@@ -2,6 +2,10 @@ import numpy as np
 from numpy.typing import NDArray
 
 
+SOQPSK_NUMER = 1
+SOQPSK_DENOM = 2
+
+
 def freq_pulse_soqpsk(
     T_1: float = 1.5,
     T_2: float = 0.5,
