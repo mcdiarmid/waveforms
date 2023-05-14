@@ -25,13 +25,21 @@ def frequency_modulate(
 
     E.g. GNURadio minimizes the effect of compounding quantization error
     by performing a modulo-2pi after each iteration in the integral/sum.
+    The below implementation is similar to the GNURadio implementation,
+    since there is no numpy function for "accumulate with modulo".
 
     :param freq_pulses: Frequency pulses (pulse shaped symbols)
     :param sensitivity: 2 * pi / sps
     :param initial_phase: Phase of y(t=0)
     :return: Frequency Modulated signal
     """
-    return phase_modulate(np.cumsum(freq_pulses), sensitivity) * np.exp(j * initial_phase)
+    # return phase_modulate(np.cumsum(freq_pulses), sensitivity) * np.exp(j * initial_phase)
+    phase_array = np.zeros(freq_pulses.shape, dtype=np.float64)
+    phase_i = initial_phase
+    for i, sample in enumerate(freq_pulses):
+        phase_i = (phase_i + sensitivity * sample) % (2 * np.pi)
+        phase_array[i] = phase_i
+    return np.exp(j * phase_array)
 
 
 def cpm_modulate(

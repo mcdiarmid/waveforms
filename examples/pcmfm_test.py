@@ -114,5 +114,5 @@ if __name__ == "__main__":
     psd_ax.grid(which="both", linestyle=":")
 
     fig.tight_layout()
-    fig.show()
     fig.savefig(Path(__file__).parent.parent / "images" / "pcmfm_bessel_comparison.png")
+    fig.show()
