@@ -49,18 +49,21 @@ if __name__ == "__main__":
             PCMFMSymbolMapper(),
             PCMFM_NUMER / PCMFM_DENOM,
             freq_pulse_pcmfm(sps=sps, order=6),
+            1,
         ),
         (
             "SOQPSK-TG",
             SOQPSKPrecoder(),
             SOQPSK_NUMER / SOQPSK_DENOM,
             freq_pulse_soqpsk_tg(sps=sps),
+            1,
         ),
         (
             "Multi-h CPM",
             MultiHSymbolMapper(),
             MULTIH_IRIG_NUMER / MULTIH_IRIG_DENOM,
             freq_pulse_multih_irig(sps=sps),
+            2,
         ),
     ]
     colors = {
@@ -74,7 +77,7 @@ if __name__ == "__main__":
     pulse_ax: Axes = axes[0]
     psd_ax: Axes = axes[1]
 
-    for name, mapper, mod_index, freq_pulse in irig_waveforms:
+    for name, mapper, mod_index, freq_pulse, bpsym in irig_waveforms:
         # Modulate the input symbols
         symbols = mapper(bit_array)
         normalized_time, modulated_signal = cpm_modulate(
@@ -115,12 +118,10 @@ if __name__ == "__main__":
             label=rf'{name} $q(t)$',
         )
 
-        if name == "Multi-h CPM":
-            sps /= 2
         psd_ax.psd(
             modulated_signal,
             NFFT=fft_size,
-            Fs=sps,
+            Fs=sps / bpsym,
             label=name,
             color=colors[name],
         )
