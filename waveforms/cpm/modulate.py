@@ -7,6 +7,33 @@ from numpy.typing import NDArray
 j = complex(0, 1)
 
 
+def phase_modulate(
+    phase: NDArray[np.float64],
+    sensitivity: float,
+) -> NDArray[np.float64]:
+    return np.exp(j * sensitivity * phase)
+
+
+def frequency_modulate(
+    freq_pulses: NDArray[np.float64],
+    sensitivity: float,
+    initial_phase: float = 0,
+) -> NDArray[np.float64]:
+    """
+    Note: since this relies on an integral, appropriate handling of 
+    quantization error needs to be considered for real-world implementation.
+
+    E.g. GNURadio minimizes the effect of compounding quantization error
+    by performing a modulo-2pi after each iteration in the integral/sum.
+
+    :param freq_pulses: Frequency pulses (pulse shaped symbols)
+    :param sensitivity: 2 * pi / sps
+    :param initial_phase: Phase of y(t=0)
+    :return: Frequency Modulated signal
+    """
+    return phase_modulate(np.cumsum(freq_pulses), sensitivity) * np.exp(j * initial_phase)
+
+
 def cpm_modulate(
     symbols: NDArray[np.int8],
     mod_index: Union[float, NDArray[np.float64]],
@@ -42,5 +69,9 @@ def cpm_modulate(
 
     # Phase modulate signal
     freq_pulses = np.convolve(interpolated_soft_symbols, pulse_filter, mode="same")
-    phi = 2 * np.pi * np.cumsum(freq_pulses) / sps + np.pi / 4
-    return normalized_time, np.exp(j*phi)
+    modulated_signal = frequency_modulate(
+        freq_pulses,
+        sensitivity=2*np.pi/sps,
+        initial_phase=np.pi/4
+    )
+    return normalized_time, modulated_signal
