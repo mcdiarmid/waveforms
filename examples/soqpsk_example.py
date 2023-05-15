@@ -14,6 +14,7 @@ from waveforms.cpm.soqpsk import (
     freq_pulse_soqpsk_mil,
 )
 from waveforms.cpm.modulate import cpm_modulate
+from waveforms.plotting import eye_diagram
 
 
 DATA_HEADER = b"\x1b\x1bHello World!"
@@ -37,13 +38,11 @@ if __name__ == "__main__":
     symbols = symbol_precoder(bit_array)
 
     # Create plots and axes
-    fig_eye, eye_const_axes = plt.subplots(2, 2)
+    fig_eye, eye_const_axes = plt.subplots(2, 2, figsize=(12, 10), dpi=100)
     eye_real_ax: Axes = eye_const_axes[0, 0]
     eye_imag_ax: Axes = eye_const_axes[1, 0]
     pulse_ax: Axes = eye_const_axes[0, 1]
     psd_ax: Axes = eye_const_axes[1, 1]
-
-    fig_constel, constel_ax = plt.subplots(1, 1)
 
     # Simulate the following SOQPSK Waveforms
     pulses_colors_labels = (
@@ -61,27 +60,13 @@ if __name__ == "__main__":
             sps=sps,
         )
         normalized_time /= 2  # SOQPSK symbols are spaced at T/2
-
-        modulo = 4
-        for i in range((normalized_time.size-1)//(sps*modulo)):
-            idx_start = i*sps*modulo
-            eye_real_ax.plot(
-                (normalized_time[idx_start:idx_start+sps*modulo+1]-normalized_time[idx_start]),
-                modulated_signal.real[idx_start:idx_start+sps*modulo+1],
-                linewidth=0.3,
-                color=color,
-            )
-            eye_imag_ax.plot(
-                (normalized_time[idx_start:idx_start+sps*modulo+1]-normalized_time[idx_start]),
-                modulated_signal.imag[idx_start:idx_start+sps*modulo+1],
-                linewidth=0.3,
-                color=color,
-            )
-        constel_ax.plot(
-            modulated_signal.real,
-            modulated_signal.imag,
-            color=color,
-            label=label,
+        eye_diagram(
+            normalized_time,
+            modulated_signal,
+            sps=sps,
+            modulo=4,
+            eye_ax=(eye_real_ax, eye_imag_ax),
+            color=color
         )
         psd_ax.psd(
             modulated_signal,
@@ -134,15 +119,6 @@ if __name__ == "__main__":
     for ax_row in eye_const_axes:
         for ax in ax_row:
             ax.grid(which="both", linestyle=":")
-
-    # Format Eye diagrams
-    eye_real_ax.set_title("Eye Diagram (In-phase)")
-    eye_real_ax.set_ylabel("Amplitude")
-    eye_real_ax.set_xlabel("Normalized Time [t/T]")
-
-    eye_imag_ax.set_title("Eye Diagram (Quadrature)")
-    eye_imag_ax.set_ylabel("Amplitude")
-    eye_imag_ax.set_xlabel("Normalized Time [t/T]")
 
     # Format pulse diagram
     pulse_ax.set_title("Phase and Frequency Pulses")
