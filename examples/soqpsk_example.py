@@ -1,4 +1,5 @@
 import random
+from pathlib import Path
 
 import numpy as np
 from numpy.typing import NDArray
@@ -140,4 +141,5 @@ if __name__ == "__main__":
     psd_ax.xaxis.set_major_locator(MultipleLocator(0.5))
 
     fig_eye.tight_layout()
+    fig_eye.savefig(Path(__file__).parent.parent / "images" / "soqpsk_waveforms1.png")
     fig_eye.show()
