@@ -64,7 +64,7 @@ def cpm_modulate(
         mod_index = np.array(mod_index, dtype=np.float64)
 
     # Normalized time array
-    num_points = (len(symbols)+1)*sps+1
+    num_points = (symbols.size+1)*sps+1
     normalized_time = np.linspace(0, symbols.size+1, num=num_points, dtype=np.float64)
 
     # Create an array of alternating mod indicies
