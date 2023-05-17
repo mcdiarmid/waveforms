@@ -38,8 +38,12 @@ if __name__ == "__main__":
     symbols = symbol_precoder(bit_array)
 
     # Create plots and axes
-    fig_eye, iq_axes = plt.subplots(4, 2, figsize=(12, 10), dpi=100)
-
+    fig_eye, iq_axes = plt.subplots(5, 2, figsize=(12, 10), dpi=100)
+    fig_eye, bm_axes = plt.subplots(3, 2, figsize=(12, 4), dpi=100)
+    pseudo_symbols = np.array([  # [k, l]
+        [-j, 1, j],
+        [np.sqrt(2)/2*(1-j), np.sqrt(2)/2, np.sqrt(2)/2*(1+j)],
+    ], dtype=np.complex128)
 
     # Simulate the following SOQPSK Waveforms
     pulses_colors_labels = (
@@ -54,7 +58,7 @@ if __name__ == "__main__":
             pulse_filter=pulse_filter,
             sps=sps,
         )
-        modulated_signal *= np.exp(-j*np.pi/4)
+        # modulated_signal *= np.exp(-j*np.pi/4)
         quad_demod = np.angle(modulated_signal[1:] * modulated_signal.conj()[:-1]) * sps / np.pi
         normalized_time /= 2  # SOQPSK symbols are spaced at T/2
 
@@ -65,12 +69,40 @@ if __name__ == "__main__":
             sps,
             k_max=2
         )
+        y = [
+            np.convolve(rho, modulated_signal, mode="same")
+            for rho in (rho_0, rho_1)
+        ]
 
         # Plot stuff
         pulse_ax: Axes = iq_axes[0, i]
         phase_ax: Axes = iq_axes[1, i]
         real_ax: Axes = iq_axes[2, i]
         imag_ax: Axes = iq_axes[3, i]
+        bm_real_ax: Axes = bm_axes[0, i]
+        bm_imag_ax: Axes = bm_axes[1, i]
+        bm_ph_ax: Axes = bm_axes[2, i]
+
+        for l in range(3):
+            z_pam_l = 0
+            for k, yk in enumerate(y):
+                z_pam_l += yk * pseudo_symbols[k,l].conj()
+            t = np.linspace(0, yk.size/sps, num=yk.size)
+            bm_real_ax.plot(
+                t,
+                (z_pam_l*modulated_signal).real,
+                label=fr"SOQPSK-{label} l={l}"
+            )
+            bm_imag_ax.plot(
+                t,
+                (z_pam_l*modulated_signal).imag,
+                label=fr"SOQPSK-{label} l={l}"
+            )
+            bm_ph_ax.plot(
+                t[:-1],
+                quad_demod
+            )
+
         phase_ax.plot(normalized_time[:-1], quad_demod)
         real_ax.plot(normalized_time, modulated_signal.real)
         imag_ax.plot(normalized_time, modulated_signal.imag)
@@ -91,10 +123,10 @@ if __name__ == "__main__":
 
     phase_ax.stem(normalized_time[sps:-1:sps], symbols)
     # Format pulse diagram
-    for ax_row in iq_axes[1:]:
+    for ax_row in (*iq_axes[1:], *bm_axes):
         for ax in ax_row:
             ax: Axes
-            ax.set_xlim([0, 20])
+            ax.set_xlim([20, 30])
             ax.xaxis.set_major_locator(MultipleLocator(2))
             ax.xaxis.set_minor_locator(MultipleLocator(0.5))
             ax.grid(which="both", linestyle=":")
