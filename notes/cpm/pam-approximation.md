@@ -50,3 +50,62 @@ $$v_{k,n} = \frac{1}{C_l}  \sum_{k:\bold{A}_k^{'}=\bold{A}_{B_l}^{'}}^{1} a_{k,n
 $$\rho_{l}(t) = C_l \prod_{c=0}^{2L-1}u(t+A_{B_l, c}^{'}T)$$
 
 $$\tilde{s}(t;\alpha) = \sum_{k=0}^{1}\sum_{n}v_{k,n}\rho_{k}(t-nT)$$
+
+
+## For SOQPSK
+
+$$\rho_0(t) = C_0 \prod_{c=0}^{2L-1}u(t+A_{B_0,c}^{'}T)$$
+
+$$\rho_1(t) = C_1 \prod_{c=0}^{2L-1}u(t+A_{B_1,c}^{'}T)$$
+
+For SOQPSK-MIL
+
+For the first term $\rho_0(t)$
+
+$$\rho_0(t) = \prod_{c=0}^{1}u(t+A_{0,c}^{'}T)$$
+
+$$\rho_0(t) = \left[
+    u(t+0T) \times
+    u(t+0T)
+\right] = u^2(t)$$
+
+And for the second term $\rho_1(t)$
+
+$$\rho_1(t) = 2 \prod_{c=0}^{1}u(t+A_{1,c}^{'}T)$$
+
+$$\rho_1(t) = 2 \left[
+    u(t+0T) \times
+    u(t+1T)
+\right] = 2u(t)u(t+T)$$
+
+
+| $k$ | $v_{k,n}$ | $\rho_k(t)$ |
+| --- | ----------|-------------|
+| $0$ | $a_{0,n}$ | $u^2(t)$    |
+| $1$ | $\frac{1}{2}(a_{1,n} + a_{2,n})$ | $2u(t)u(t+T)$    |
+
+For SOQPSK-TG
+
+For the first term $\rho_0(t)$
+
+$$\rho_0(t) = \prod_{c=0}^{15}u(t+A_{0,c}^{'}T)$$
+
+$$\rho_1(t) = 2 \left[
+    u^2(t+0T) \times
+    u^2(t+1T) \times
+    ... \times
+    u^2(t+7T)
+\right]$$
+
+And for the second term $\rho_1(t)$
+
+$$\rho_1(t) = 2 \prod_{c=0}^{15}u(t+A_{1,c}^{'}T)$$
+
+$$\rho_1(t) = 2 \left[
+    u(t+0T) \times
+    u^2(t+1T) \times
+    u^2(t+2T) \times
+    ... \times
+    u^2(t+7T) \times
+    u(t+8T)
+\right]$$
