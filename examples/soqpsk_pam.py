@@ -88,14 +88,15 @@ if __name__ == "__main__":
             for k, yk in enumerate(y):
                 z_pam_l += yk * pseudo_symbols[k,l].conj()
             t = np.linspace(0, yk.size/sps, num=yk.size)
+            zz = z_pam_l*modulated_signal
             bm_real_ax.plot(
                 t,
-                (z_pam_l*modulated_signal).real,
+                zz.real*zz.imag,
                 label=fr"SOQPSK-{label} l={l}"
             )
             bm_imag_ax.plot(
                 t,
-                (z_pam_l*modulated_signal).imag,
+                zz.imag,
                 label=fr"SOQPSK-{label} l={l}"
             )
             bm_ph_ax.plot(
@@ -126,9 +127,9 @@ if __name__ == "__main__":
     for ax_row in (*iq_axes[1:], *bm_axes):
         for ax in ax_row:
             ax: Axes
-            ax.set_xlim([20, 30])
-            ax.xaxis.set_major_locator(MultipleLocator(2))
-            ax.xaxis.set_minor_locator(MultipleLocator(0.5))
+            ax.set_xlim([10, 20])
+            ax.xaxis.set_major_locator(MultipleLocator(5))
+            ax.xaxis.set_minor_locator(MultipleLocator(1))
             ax.grid(which="both", linestyle=":")
 
     for pulse_ax in iq_axes[0, :]:
