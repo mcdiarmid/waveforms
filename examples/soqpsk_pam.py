@@ -18,7 +18,7 @@ from waveforms.cpm.pamapprox import rho_pulses
 
 
 DATA_HEADER = b"\x1b\x1bHello World!"
-DATA_EXTRA = bytes([random.randint(0,0xff) for i in range(250)])
+DATA_EXTRA = bytes([random.randint(0,0xff) for i in range(100)])
 DATA_BUFFER = DATA_HEADER + DATA_EXTRA
 j = complex(0, 1)
 
@@ -58,21 +58,28 @@ if __name__ == "__main__":
             pulse_filter=pulse_filter,
             sps=sps,
         )
-        # modulated_signal *= np.exp(-j*np.pi/4)
-        quad_demod = np.angle(modulated_signal[1:] * modulated_signal.conj()[:-1]) * sps / np.pi
-        normalized_time /= 2  # SOQPSK symbols are spaced at T/2
+        noise = np.random.normal(
+            loc=0,
+            scale=0.05*np.sqrt(2)/2,
+            size=(modulated_signal.size, 2)
+        ).view(np.complex128).flatten()
+        modulated_signal *= np.exp(-j*np.pi/4)
+        freq_pulses = np.angle(modulated_signal[1:] * modulated_signal.conj()[:-1]) * sps / np.pi
+
+        # Received signal
+        received_signal: NDArray[np.float64] = modulated_signal + noise
+        quad_demod = np.angle(received_signal[1:] * received_signal.conj()[:-1]) * sps / np.pi
 
         # PAM De-composition
-        rho_0, rho_1 = rho_pulses(
+        rho = rho_pulses(
             pulse_filter,
             mod_index,
             sps,
             k_max=2
         )
-        y = [
-            np.convolve(rho, modulated_signal, mode="same")
-            for rho in (rho_0, rho_1)
-        ]
+        # truncate to d_k=3
+        rho = [rho_k[int((rho_k.size-3*sps)/2):int((rho_k.size+3*sps)/2)] for rho_k in rho]
+        d_max = max([rho_k.size for rho_k in rho])
 
         # Plot stuff
         pulse_ax: Axes = iq_axes[0, i]
@@ -81,46 +88,55 @@ if __name__ == "__main__":
         imag_ax: Axes = iq_axes[3, i]
         bm_real_ax: Axes = bm_axes[0, i]
         bm_imag_ax: Axes = bm_axes[1, i]
-        bm_ph_ax: Axes = bm_axes[2, i]
 
-        for l in range(3):
-            z_pam_l = 0
-            for k, yk in enumerate(y):
-                z_pam_l += yk * pseudo_symbols[k,l].conj()
-            t = np.linspace(0, yk.size/sps, num=yk.size)
-            zz = z_pam_l*modulated_signal
-            bm_real_ax.plot(
-                t,
-                zz.real*zz.imag,
-                label=fr"SOQPSK-{label} l={l}"
-            )
-            bm_imag_ax.plot(
-                t,
-                zz.imag,
-                label=fr"SOQPSK-{label} l={l}"
-            )
-            bm_ph_ax.plot(
-                t[:-1],
-                quad_demod
-            )
+        for sym, c in zip(range(3), ("r", "g", "b")):
+            for n in normalized_time[:-d_max:sps][:-1]:
+                z_ln = np.zeros(d_max, dtype=np.complex128)
+                ix = int((n+0)*sps)
+                for k, rho_k in enumerate(rho):
+                    y_kn = np.cumsum(received_signal[ix:ix+rho_k.size]*rho_k) / sps
+                    z_ln[:rho_k.size] += y_kn * pseudo_symbols[k,sym].conj()
+
+                bm_real_ax.plot(
+                    normalized_time[ix:ix+d_max],
+                    z_ln.real,
+                    color=c,
+                    linestyle="-",
+                    alpha=0.3
+                )
+                bm_real_ax.plot(
+                    normalized_time[ix+d_max],
+                    z_ln.real[-1],
+                    color=c,
+                    linestyle="",
+                    marker="o"
+                )
+                bm_imag_ax.plot(
+                    normalized_time[ix:ix+d_max],
+                    z_ln.imag,
+                    color=c,
+                    linestyle="-",
+                    alpha=0.3
+                )
+                bm_imag_ax.plot(
+                    normalized_time[ix+d_max],
+                    z_ln.imag[-1],
+                    color=c,
+                    linestyle="",
+                    marker="o"
+                )
 
         phase_ax.plot(normalized_time[:-1], quad_demod)
         real_ax.plot(normalized_time, modulated_signal.real)
         imag_ax.plot(normalized_time, modulated_signal.imag)
-        pulse_ax.plot(
-            np.linspace(0, rho_0.size/sps, num=rho_0.size),
-            rho_0,
-            linestyle="-",
-            color="b",
-            label=fr"SOQPSK-{label} $\rho_0(t)$"
-        )
-        pulse_ax.plot(
-            np.linspace(0, rho_1.size/sps, num=rho_1.size),
-            rho_1,
-            linestyle="--",
-            color="g",
-            label=fr"SOQPSK-{label} $\rho_1(t)$"
-        )
+        for k, rho_k in enumerate(rho):
+            pulse_ax.plot(
+                np.linspace(0, rho_k.size/sps, num=rho_k.size),
+                rho_k,
+                linestyle="-",
+                color="b",
+                label=fr"SOQPSK-{label} $\rho_{k}(t)$"
+            )
 
     phase_ax.stem(normalized_time[sps:-1:sps], symbols)
     # Format pulse diagram
