@@ -15,7 +15,7 @@ from waveforms.cpm.soqpsk import (
 )
 from waveforms.cpm.helpers import normalize_cpm_filter
 from waveforms.cpm.modulate import cpm_modulate
-from waveforms.cpm.pamapprox import rho_pulses
+from waveforms.lpf import hann_window
 
 
 DATA_HEADER = b"\x1b\x1bHello World!"
@@ -26,10 +26,11 @@ j = complex(0, 1)
 
 if __name__ == "__main__":
     # Constants
-    sps = 20
+    sps = 40
     fft_size = 2**9
-    # mod_index = 1/2
     pulse_pad = 0.5
+    alpha = 1, 0
+    noise_variance = 0.1
 
     # Bits of information to transmit
     bit_array = np.unpackbits(np.frombuffer(DATA_BUFFER, dtype=np.uint8))
@@ -39,7 +40,8 @@ if __name__ == "__main__":
     symbols = symbol_precoder(bit_array)
 
 
-    fig, pt_axes = plt.subplots(4, 2, figsize=(12, 10), dpi=100)
+    fig, pt_axes = plt.subplots(3, 2, figsize=(12, 10), dpi=100)
+    lpf = hann_window(sps, 0.9*2) / sps
 
     # Simulate the following SOQPSK Waveforms
     pulses_colors_labels = (
@@ -56,86 +58,118 @@ if __name__ == "__main__":
         )
         noise = np.random.normal(
             loc=0,
-            scale=0.1*np.sqrt(2)/2,
+            scale=noise_variance*np.sqrt(2)/2,
             size=(modulated_signal.size, 2)
         ).view(np.complex128).flatten()
         modulated_signal *= np.exp(-j*np.pi/4)
+        modulated_signal *= np.exp(-j*np.pi/5)
         freq_pulses = np.angle(modulated_signal[1:] * modulated_signal.conj()[:-1]) * sps / np.pi
 
         # Received signal
         received_signal: NDArray[np.float64] = modulated_signal + noise
-        quad_demod = np.angle(received_signal[1:] * received_signal.conj()[:-1]) * sps / np.pi
+        lpf_rx_signal: NDArray[np.float64] = np.convolve(received_signal, lpf, mode="same")
+    
+        quad_demod = np.angle(lpf_rx_signal[1:] * lpf_rx_signal.conj()[:-1]) * sps / np.pi
 
         idx_start = int((pulse_filter.size - sps)/2)
         idx_end = int((pulse_filter.size + sps)/2)
-        # truncated_pulse = pulse_filter[idx_start:idx_end]
+        truncated_pulse = pulse_filter[idx_start:idx_end]
         truncated_pulse = normalize_cpm_filter(sps=sps, g=pulse_filter[idx_start:idx_end])
         matched_filters = [
             np.exp(-j*2*np.pi*mod_index*a_k*truncated_pulse)
-            for a_k in (0, 1)
+            for a_k in alpha
         ]
+        mf_rx = np.convolve(lpf_rx_signal, matched_filters[1], mode="same") / sps
+        mf_rx_quad_demod = np.angle(mf_rx[1:] * mf_rx.conj()[:-1]) * sps / np.pi
 
+        # Assign axes
         iq_ax: Axes = pt_axes[0, i]
-        pulse_ax: Axes = pt_axes[1, i]
-        mf_ax: Axes = pt_axes[2, i]
-        psd_ax: Axes = pt_axes[3, i]
-        mf_rx = np.convolve(received_signal, matched_filters[-2], mode="same") / sps
+        mf_ax: Axes = pt_axes[1, i]
+        mf_theta_ax = mf_ax.twinx()
+        psd_ax: Axes = pt_axes[2, i]
 
+        # Plot transmitted, received, and MF received (IQ) signal
         iq_ax.plot(normalized_time, modulated_signal.real, color="blue", alpha=1)
         iq_ax.plot(normalized_time, modulated_signal.imag, color="red", alpha=1)
-        iq_ax.plot(normalized_time, received_signal.real, color="blue", alpha=0.5)
-        iq_ax.plot(normalized_time, received_signal.imag, color="red", alpha=0.5)
+        iq_ax.plot(normalized_time, lpf_rx_signal.real, color="blue", alpha=0.5)
+        iq_ax.plot(normalized_time, lpf_rx_signal.imag, color="red", alpha=0.5)
         iq_ax.plot(normalized_time, mf_rx.real, color="darkblue", alpha=0.8)
         iq_ax.plot(normalized_time, mf_rx.imag, color="darkred", alpha=0.8)
 
-        pulse_ax.plot(normalized_time[:-1], freq_pulses)
-        pulse_ax.plot(normalized_time[:-1], np.convolve(quad_demod, pulse_filter, mode="same")*2/sps)
-        pulse_ax.stem(normalized_time[sps:-1:sps], symbols)
-        for symbol, color in zip((0, 1), ("g", "b")):
-            mf = np.exp(-j*2*np.pi*mod_index*symbol*truncated_pulse)
-            for k in normalized_time[:-mf.size:sps][:-1]:
-                ix = int((k+0.5)*sps)
-                fx = ix + mf.size
-                tau = normalized_time[ix:fx]
-                z_kn = np.cumsum(received_signal[ix:fx]*mf) / sps
-                mf_ax.plot(tau, z_kn.real, color=color, linestyle="-", alpha=0.4)
-                mf_ax.plot(normalized_time[(fx+ix)//2], z_kn.real[-1], color=color, marker=">")
-                mf_ax.plot(tau, z_kn.imag, color=color, linestyle=":", alpha=0.4)
-                mf_ax.plot(normalized_time[(fx+ix)//2], z_kn.imag[-1], color=color, marker="<")
+        # pulse_ax
+        mf_ax.stem(normalized_time[sps:-1:sps], symbols, linefmt="k", markerfmt="kx", basefmt="k")
 
-            z_k = np.convolve(received_signal, mf, mode="same") / sps
+        # Create branch metrics
+        zeds = []
+        
+        for symbol, color in zip(alpha, ("b", "g", "r")):
+            # Convolving the matched filter and sampling at the correct time
+            # is the same as the correctly sampled integral (intergrate and dump)
+            mf = np.exp(-j*2*np.pi*mod_index*symbol*truncated_pulse)
+            z_k = np.convolve(lpf_rx_signal, mf, mode="same") / sps
+            z_k[:] *= np.exp(j*np.pi/5)
             mf_ax.plot(
                 normalized_time,
-                z_k.real,
+                z_k.real*z_k.imag,
                 color=color,
                 linestyle="-",
                 alpha=0.7,
+                label=""
             )
             mf_ax.plot(
-                normalized_time,
-                z_k.imag,
+                normalized_time[::sps],
+                z_k.real[::sps]*z_k.imag[::sps],
                 color=color,
-                linestyle=":",
+                linestyle="",
+                marker="o",
                 alpha=0.7,
             )
-
+            zeds.append(z_k)
+            # mf_ax.plot(
+            #     normalized_time,
+            #     z_k.imag,
+            #     color=color,
+            #     linestyle=":",
+            #     alpha=0.7,
+            # )
+            # mf_ax.plot(
+            #     normalized_time[::sps],
+            #     z_k.imag[::sps],
+            #     color=color,
+            #     linestyle="",
+            #     marker="o",
+            #     alpha=0.7,
+            # )
+        mf_theta_ax.plot(
+            normalized_time[:-1],
+            np.abs(np.diff(np.angle(
+                zeds[0].real*zeds[0].imag * j + 
+                zeds[1].real*zeds[1].imag 
+            ) % (np.pi)))
+        )
         psd_ax.psd(
             modulated_signal,
             NFFT=fft_size,
             Fs=sps,
-            label=label,
+            label="$s(t)$",
         )
         psd_ax.psd(
             received_signal,
             NFFT=fft_size,
             Fs=sps,
-            label=label,
+            label="$s(t) + N(t)$",
+        )
+        psd_ax.psd(
+            lpf_rx_signal,
+            NFFT=fft_size,
+            Fs=sps,
+            label="LPF",
         )
 
     for ax_row in pt_axes[:-1]:
         for ax in ax_row:
             ax: Axes
-            ax.set_xlim([10, 25])
+            ax.set_xlim([symbols.size/2, symbols.size/2 + 15])
             ax.set_ylim([-1.5, 1.5])
             ax.xaxis.set_major_locator(MultipleLocator(5))
             ax.xaxis.set_minor_locator(MultipleLocator(1))
