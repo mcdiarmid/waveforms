@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
 
     fig, pt_axes = plt.subplots(3, 2, figsize=(12, 10), dpi=100)
-    lpf = hann_window(sps, 0.9*2) / sps
+    lpf = hann_window(sps, 1.8) / sps
 
     # Simulate the following SOQPSK Waveforms
     pulses_colors_labels = (
@@ -61,8 +61,8 @@ if __name__ == "__main__":
             scale=noise_variance*np.sqrt(2)/2,
             size=(modulated_signal.size, 2)
         ).view(np.complex128).flatten()
-        modulated_signal *= np.exp(-j*np.pi/4)
-        modulated_signal *= np.exp(-j*np.pi/5)
+        modulated_signal *= np.exp(-j*np.pi/4)  # Optimal initial phase for calculating branch metrics
+        modulated_signal *= np.exp(-j*np.pi/5)  # Some constant phase offset
         freq_pulses = np.angle(modulated_signal[1:] * modulated_signal.conj()[:-1]) * sps / np.pi
 
         # Received signal
@@ -103,11 +103,20 @@ if __name__ == "__main__":
         zeds = []
         
         for symbol, color in zip(alpha, ("b", "g", "r")):
+            # Compute Matched Filter
+            mf = np.exp(-j*2*np.pi*mod_index*symbol*truncated_pulse)
+
+            # IMPORTANT - Timing and phase recovery MUST be done before Viterbi
+            # It is feasible for a feed-forward implementation, but feed-back implementations
+            # seem to be optimal and best-practise
+
             # Convolving the matched filter and sampling at the correct time
             # is the same as the correctly sampled integral (intergrate and dump)
-            mf = np.exp(-j*2*np.pi*mod_index*symbol*truncated_pulse)
             z_k = np.convolve(lpf_rx_signal, mf, mode="same") / sps
+
+            # Apply Phase correction ()
             z_k[:] *= np.exp(j*np.pi/5)
+
             mf_ax.plot(
                 normalized_time,
                 z_k.real*z_k.imag,
@@ -164,6 +173,12 @@ if __name__ == "__main__":
             NFFT=fft_size,
             Fs=sps,
             label="LPF",
+        )
+        psd_ax.psd(
+            np.convolve(noise, lpf, mode="same"),
+            NFFT=fft_size,
+            Fs=sps,
+            label="LPF Noise",
         )
 
     for ax_row in pt_axes[:-1]:
