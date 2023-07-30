@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "waveforms"
+authors = [
+    {name = "Campbell McDiarmid", email = "campbell.mcdiarmid@icloud.com"}
+]
+
+description = "Simulation tools for modulating and demodulating data using various waveform definitions."
+readme = "README.md"
+requires-python = ">=3.8"
+keywords = ["waveforms"]
+license = {text = "MIT"}
+classifiers = [
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "numpy",
+    "scipy",
+    "matplotlib",
+]
+version = "0.1.0"
+
+[project.optional-dependencies]
+dev = [
+    "pylint",
+    "black",
+]
+
+[tool.setuptools.packages.find]
+include = ["waveforms*"]
