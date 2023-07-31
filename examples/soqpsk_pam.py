@@ -1,12 +1,11 @@
 import random
 from pathlib import Path
-from typing import List
 
 import numpy as np
 from numpy.typing import NDArray
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
-from matplotlib.ticker import MultipleLocator
+from matplotlib.ticker import MultipleLocator, AutoLocator, AutoMinorLocator
 
 from waveforms.cpm.soqpsk import (
     SOQPSKPrecoder,
@@ -25,7 +24,7 @@ j = complex(0, 1)
 
 if __name__ == "__main__":
     # Constants
-    sps = 40
+    sps = 20
     fft_size = 2**9
     # mod_index = 1/2
     pulse_pad = 0.5
@@ -38,8 +37,15 @@ if __name__ == "__main__":
     symbols = symbol_precoder(bit_array)
 
     # Create plots and axes
-    fig_eye, iq_axes = plt.subplots(5, 2, figsize=(12, 10), dpi=100)
-    fig_eye, bm_axes = plt.subplots(3, 2, figsize=(12, 4), dpi=100)
+    fig_eye, iq_axes = plt.subplots(4, 2, figsize=(12, 10), dpi=100)
+    for ax in iq_axes.flatten():
+        ax: Axes
+        ax.set_xlim([10, 20])
+        ax.xaxis.set_major_locator(MultipleLocator(5))
+        ax.xaxis.set_minor_locator(MultipleLocator(1))
+        ax.grid(which="both", linestyle=":")
+
+    # Generate pseudo-symbols
     pseudo_symbols = np.array([  # [k, l]
         [-j, 1, j],
         [np.sqrt(2)/2*(1-j), np.sqrt(2)/2, np.sqrt(2)/2*(1+j)],
@@ -60,7 +66,7 @@ if __name__ == "__main__":
         )
         noise = np.random.normal(
             loc=0,
-            scale=0.05*np.sqrt(2)/2,
+            scale=0.01*np.sqrt(2)/2,
             size=(modulated_signal.size, 2)
         ).view(np.complex128).flatten()
         modulated_signal *= np.exp(-j*np.pi/4)
@@ -71,86 +77,81 @@ if __name__ == "__main__":
         quad_demod = np.angle(received_signal[1:] * received_signal.conj()[:-1]) * sps / np.pi
 
         # PAM De-composition
-        rho = rho_pulses(
+        rho_original = rho_pulses(
             pulse_filter,
             mod_index,
             sps,
             k_max=2
         )
+
         # truncate to d_k=3
-        rho = [rho_k[int((rho_k.size-3*sps)/2):int((rho_k.size+3*sps)/2)] for rho_k in rho]
+        # fuck why am I doing this again?
+        rho = [rho_k[int((rho_k.size-3*sps)/2):int((rho_k.size+3*sps)/2)] for rho_k in rho_original]
         d_max = max([rho_k.size for rho_k in rho])
 
-        # Plot stuff
-        pulse_ax: Axes = iq_axes[0, i]
-        phase_ax: Axes = iq_axes[1, i]
-        real_ax: Axes = iq_axes[2, i]
-        imag_ax: Axes = iq_axes[3, i]
-        bm_real_ax: Axes = bm_axes[0, i]
-        bm_imag_ax: Axes = bm_axes[1, i]
+        # Assign axes
+        iq_ax: Axes = iq_axes[0, i]
+        pulse_ax: Axes = iq_axes[1, i]
+        mf_ax: Axes = iq_axes[2, i]
+        rho_ax: Axes = iq_axes[3, i]
 
         for sym, c in zip(range(3), ("r", "g", "b")):
+            z_ln = np.zeros(received_signal.size+d_max-1, dtype=np.complex128)
+            t = np.linspace(0, z_ln.size/sps, z_ln.size)
+            for k, rho_k in enumerate(rho):
+                z_ln[:z_ln.size-(d_max-rho_k.size)] += np.convolve(received_signal, rho_k) * pseudo_symbols[k,sym].conj()
+
             for n in normalized_time[:-d_max:sps][:-1]:
-                z_ln = np.zeros(d_max, dtype=np.complex128)
                 ix = int((n+0)*sps)
-                for k, rho_k in enumerate(rho):
-                    y_kn = np.cumsum(received_signal[ix:ix+rho_k.size]*rho_k) / sps
-                    z_ln[:rho_k.size] += y_kn * pseudo_symbols[k,sym].conj()
-
-                bm_real_ax.plot(
-                    normalized_time[ix:ix+d_max],
-                    z_ln.real,
-                    color=c,
-                    linestyle="-",
-                    alpha=0.3
-                )
-                bm_real_ax.plot(
+                mf_ax.plot(
                     normalized_time[ix+d_max],
-                    z_ln.real[-1],
+                    z_ln.real[ix+d_max],
                     color=c,
                     linestyle="",
                     marker="o"
                 )
-                bm_imag_ax.plot(
-                    normalized_time[ix:ix+d_max],
-                    z_ln.imag,
-                    color=c,
-                    linestyle="-",
-                    alpha=0.3
-                )
-                bm_imag_ax.plot(
+                mf_ax.plot(
                     normalized_time[ix+d_max],
-                    z_ln.imag[-1],
+                    z_ln.imag[ix+d_max],
                     color=c,
                     linestyle="",
-                    marker="o"
+                    marker="^"
                 )
+            mf_ax.plot(
+                t,
+                z_ln.real,
+                color=c,
+                linestyle="-",
+                alpha=0.5
+            )
+            
+            mf_ax.plot(
+                t,
+                z_ln.imag,
+                color=c,
+                linestyle="--",
+                alpha=0.5
+            )
 
-        phase_ax.plot(normalized_time[:-1], quad_demod)
-        real_ax.plot(normalized_time, modulated_signal.real)
-        imag_ax.plot(normalized_time, modulated_signal.imag)
-        for k, rho_k in enumerate(rho):
-            pulse_ax.plot(
+        pulse_ax.plot(normalized_time[:-1], quad_demod)
+        pulse_ax.stem(normalized_time[sps:-1:sps], symbols)
+        iq_ax.plot(normalized_time, modulated_signal.real)
+        iq_ax.plot(normalized_time, modulated_signal.imag)
+        for k, rho_k, fmt in zip((0, 1), rho_original, ("b-", "g--")):
+            rho_ax.plot(
                 np.linspace(0, rho_k.size/sps, num=rho_k.size),
                 rho_k,
-                linestyle="-",
-                color="b",
+                fmt,
                 label=fr"SOQPSK-{label} $\rho_{k}(t)$"
             )
 
-    phase_ax.stem(normalized_time[sps:-1:sps], symbols)
-    # Format pulse diagram
-    for ax_row in (*iq_axes[1:], *bm_axes):
-        for ax in ax_row:
-            ax: Axes
-            ax.set_xlim([10, 20])
-            ax.xaxis.set_major_locator(MultipleLocator(5))
-            ax.xaxis.set_minor_locator(MultipleLocator(1))
-            ax.grid(which="both", linestyle=":")
+        rho_ax.set_xlim(0, rho_original[0].size/sps)
 
-    for pulse_ax in iq_axes[0, :]:
-        pulse_ax.grid(which="both", linestyle=":")
-        pulse_ax.legend()
+    for rho_ax in iq_axes[3, :]:
+        rho_ax.grid(which="both", linestyle=":")
+        rho_ax.legend()
+        rho_ax.xaxis.set_major_locator(AutoLocator())
+        rho_ax.xaxis.set_minor_locator(AutoMinorLocator())
 
     fig_eye.tight_layout()
     fig_eye.savefig(Path(__file__).parent.parent / "images" / "soqpsk_pam.png")
