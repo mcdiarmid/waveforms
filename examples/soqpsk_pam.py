@@ -1,5 +1,6 @@
 import random
 from pathlib import Path
+from typing import List
 
 import numpy as np
 from numpy.typing import NDArray
@@ -66,7 +67,7 @@ if __name__ == "__main__":
         )
         noise = np.random.normal(
             loc=0,
-            scale=0.01*np.sqrt(2)/2,
+            scale=0.1*np.sqrt(2)/2,
             size=(modulated_signal.size, 2)
         ).view(np.complex128).flatten()
         modulated_signal *= np.exp(-j*np.pi/4)
@@ -77,7 +78,7 @@ if __name__ == "__main__":
         quad_demod = np.angle(received_signal[1:] * received_signal.conj()[:-1]) * sps / np.pi
 
         # PAM De-composition
-        rho_original = rho_pulses(
+        rho = rho_pulses(
             pulse_filter,
             mod_index,
             sps,
@@ -86,7 +87,11 @@ if __name__ == "__main__":
 
         # truncate to d_k=3
         # fuck why am I doing this again?
-        rho = [rho_k[int((rho_k.size-3*sps)/2):int((rho_k.size+3*sps)/2)] for rho_k in rho_original]
+        if label == "TG":
+            rho: List[NDArray[np.float64]] = [
+                rho_k[int((rho_k.size-nt*sps)/2):int((rho_k.size+nt*sps)/2)+1]
+                for rho_k, nt in zip(rho, (3, 4))
+            ]
         d_max = max([rho_k.size for rho_k in rho])
 
         # Assign axes
@@ -95,6 +100,7 @@ if __name__ == "__main__":
         mf_ax: Axes = iq_axes[2, i]
         rho_ax: Axes = iq_axes[3, i]
 
+        # TODO Implement traceback, viterbi algorithm, and trellis state
         for sym, c in zip(range(3), ("r", "g", "b")):
             z_ln = np.zeros(received_signal.size+d_max-1, dtype=np.complex128)
             t = np.linspace(0, z_ln.size/sps, z_ln.size)
@@ -137,15 +143,15 @@ if __name__ == "__main__":
         pulse_ax.stem(normalized_time[sps:-1:sps], symbols)
         iq_ax.plot(normalized_time, modulated_signal.real)
         iq_ax.plot(normalized_time, modulated_signal.imag)
-        for k, rho_k, fmt in zip((0, 1), rho_original, ("b-", "g--")):
+        for k, rho_k, fmt in zip((0, 1), rho, ("b-", "g--")):
             rho_ax.plot(
-                np.linspace(0, rho_k.size/sps, num=rho_k.size),
+                np.linspace(0, (rho_k.size-1)/sps, num=rho_k.size),
                 rho_k,
                 fmt,
                 label=fr"SOQPSK-{label} $\rho_{k}(t)$"
             )
 
-        rho_ax.set_xlim(0, rho_original[0].size/sps)
+        rho_ax.set_xlim(0, (max(rho, key=np.size).size-1)/sps)
 
     for rho_ax in iq_axes[3, :]:
         rho_ax.grid(which="both", linestyle=":")
