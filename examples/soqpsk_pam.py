@@ -85,8 +85,7 @@ if __name__ == "__main__":
             k_max=2
         )
 
-        # truncate to d_k=3
-        # fuck why am I doing this again?
+        # truncate zeros, not essential but useful for efficient FPGA implementation
         if label == "TG":
             rho: List[NDArray[np.float64]] = [
                 rho_k[int((rho_k.size-nt*sps)/2):int((rho_k.size+nt*sps)/2)+1]
@@ -100,8 +99,19 @@ if __name__ == "__main__":
         mf_ax: Axes = iq_axes[2, i]
         rho_ax: Axes = iq_axes[3, i]
 
-        # TODO Implement traceback, viterbi algorithm, and trellis state
-        for sym, c in zip(range(3), ("r", "g", "b")):
+        # Symbol memory for Branch Metrics and Viterbi Algorithm
+        alpha_i = [0] * int(pulse_filter.size/sps)
+
+        for n, r_n in enumerate(received_signal):
+            # Timing recovery (for now we live in an perfectly synchronized world)
+            # TODO implement timing and phase recovery, along with introduced imperfections
+            if n == 0 or n % sps:
+                continue
+            y_kn = 0
+
+
+        # Lazy branch per symbol
+        for sym, c in zip(range(3), ("r", "g", "b")):  # Generate branches
             z_ln = np.zeros(received_signal.size+d_max-1, dtype=np.complex128)
             t = np.linspace(0, z_ln.size/sps, z_ln.size)
             for k, rho_k in enumerate(rho):
