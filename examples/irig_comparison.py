@@ -29,7 +29,7 @@ from waveforms.cpm.modulate import cpm_modulate
 
 
 DATA_HEADER = b"\x1b\x1bHello World!"
-DATA_EXTRA = bytes([random.randint(0,0xff) for i in range(2000)])
+DATA_EXTRA = bytes([random.randint(0,0xff) for i in range(4000)])
 DATA_BUFFER = DATA_HEADER + DATA_EXTRA
 j = complex(0, 1)
 
@@ -119,11 +119,12 @@ if __name__ == "__main__":
         )
 
         psd_ax.psd(
-            modulated_signal,
+            modulated_signal*np.sqrt(bpsym),
             NFFT=fft_size,
-            Fs=sps / bpsym,
+            Fs=sps/bpsym,
             label=name,
             color=colors[name],
+            scale_by_freq=False
         )
 
         # normalized_time /= 2  # SOQPSK symbols are spaced at T/2
@@ -142,7 +143,7 @@ if __name__ == "__main__":
     psd_ax.set_title("Power Spectral Density")
     psd_ax.set_ylabel('Amplitude [dBc]')
     psd_ax.set_xlabel('Normalized Frequency [$T_b$ = 1]')
-    psd_ax.set_ylim([-60, 20])
+    psd_ax.set_ylim([-80, 0])
     psd_ax.yaxis.set_major_locator(MultipleLocator(10))
     psd_ax.set_xlim([-2, 2])
     psd_ax.legend(loc="upper center", fontsize=8, ncol=3)
