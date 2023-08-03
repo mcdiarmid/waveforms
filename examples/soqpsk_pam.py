@@ -15,10 +15,13 @@ from waveforms.cpm.soqpsk import (
 )
 from waveforms.cpm.modulate import cpm_modulate
 from waveforms.cpm.pamapprox import rho_pulses
+from waveforms.lpf import kaiser_fir_lpf
 
-
-DATA_HEADER = b"\x1b\x1bHello World!"
-DATA_EXTRA = bytes([random.randint(0,0xff) for i in range(1000)])
+# Set seeds so iterations on implementation can be compared better
+random.seed(1)
+np.random.seed(1)
+DATA_HEADER = b"\x00\x1b\x1b\x00Hello World!"
+DATA_EXTRA = bytes([random.randint(0,0xff) for i in range(2500)])
 DATA_BUFFER = DATA_HEADER + DATA_EXTRA
 j = complex(0, 1)
 
@@ -29,7 +32,8 @@ if __name__ == "__main__":
     fft_size = 2**9
     pulse_pad = 0.5
     P = 4
-    lpf = np.ones(1)  # Placeholder low pass filter
+    # lpf = np.ones(1)  # Placeholder low pass filter
+    lpf = kaiser_fir_lpf(sps, 0.50)
 
     # Bits of information to transmit
     bit_array = np.unpackbits(np.frombuffer(DATA_BUFFER, dtype=np.uint8))
@@ -44,7 +48,7 @@ if __name__ == "__main__":
         ax.grid(which="both", linestyle=":")
 
     # Generate pseudo-symbols
-    pseudo_symbols = np.array([  # [k, l]
+    pseudo_symbols = np.array([
         [-j, 1, j],
         [np.sqrt(2)/2*(1-j), np.sqrt(2)/2, np.sqrt(2)/2*(1+j)],
     ], dtype=np.complex128)
@@ -81,23 +85,46 @@ if __name__ == "__main__":
 
         # Display transmitted and received signal in the time domain
         iq_ax.plot(normalized_time, modulated_signal.real, "b-", alpha=1.0, label=r"Re[$s(t)]$")
-        iq_ax.plot(normalized_time, received_signal.real, "b-", alpha=0.5, label=r"$Re[s(t)+N]$")
+        iq_ax.plot(normalized_time, received_signal.real, "b-", alpha=0.4, label=r"$Re[s(t)+N]$")
         iq_ax.plot(normalized_time, modulated_signal.imag, "r-", alpha=1.0, label=r"Im[$s(t)]$")
-        iq_ax.plot(normalized_time, received_signal.imag, "r-", alpha=0.5, label=r"$Im[s(t)+N]$")
+        iq_ax.plot(normalized_time, received_signal.imag, "r-", alpha=0.4, label=r"$Im[s(t)+N]$")
+
+        pulse_ax = iq_ax.twinx()
+        pulse_ax.stem(normalized_time[::sps][1:-1], symbols, markerfmt="ko", linefmt="k-", basefmt=" ", label="Symbol")
+        pulse_ax.plot(normalized_time[:-1], freq_pulses, "k-", alpha=0.4, label="Frequency Pulses")
+        pulse_ax.set_ylim(-np.pi/2, np.pi/2)
 
         # Display transmitted and received signal PSD to illustrate SNR
-        psd_ax.psd(
+        pxx_tx, freqs = psd_ax.psd(
             modulated_signal,
             NFFT=fft_size,
             Fs=sps,
             label="$s(t)$",
+            scale_by_freq=False,
+        )
+        pxx_specan, freqs = psd_ax.psd(
+            modulated_signal + noise,
+            NFFT=fft_size,
+            Fs=sps,
+            label="$s(t) + N(t)$",
+            scale_by_freq=False,
         )
         psd_ax.psd(
             received_signal,
             NFFT=fft_size,
             Fs=sps,
-            label="$s(t) + N(t)$",
+            label=r"$\hat{s}(t)$",
+            scale_by_freq=False,
         )
+
+        # Spectrum Analyzer style Eb/N0 measurement
+        marker1 = 10 * np.log10(pxx_specan[fft_size//2])
+        marker2 = 10 * np.log10(pxx_specan[-1])
+        rbw = sps/fft_size
+        c0n0 = marker1 - 10 * np.log10(rbw)
+        n0 = marker2 - 10 * np.log10(rbw)
+        c0 = 10 * np.log10(np.power(10, c0n0/10) - np.power(10, n0/10))
+        ebn0 = c0 - 2.95 - 0 - n0 
 
         # PAM De-composition
         rho = rho_pulses(
@@ -106,14 +133,8 @@ if __name__ == "__main__":
             sps,
             k_max=2
         )
-
-        # truncate zeros, not essential but useful for efficient FPGA implementation
-        if label == "TG":
-            rho: List[NDArray[np.float64]] = [
-                rho_k[int((rho_k.size-nt*sps)/2):int((rho_k.size+nt*sps)/2)+1]
-                for rho_k, nt in zip(rho, (3, 4))
-            ]
         d_max = max([rho_k.size for rho_k in rho])
+        L = int(pulse_filter.size/sps)
 
         # Branch metric increment history and cumulative winning phase state
         z_n_history = []
@@ -123,16 +144,19 @@ if __name__ == "__main__":
             n = int(n)
             # Timing recovery (for now we live in an perfectly synchronized world)
             # TODO implement timing and phase recovery, along with introduced imperfections
-            if (n + sps/2) % sps:
+            if (n + L*sps/2) % sps:
                 continue
 
             # Branch increments - Iterate over hypothetical symbols
             z_n = np.zeros(3)
+            y_arr = np.zeros((3, d_max), np.complex128)
             for sym_idx in range(3):
-                y_n = 0
+                y_n = np.zeros(d_max, dtype=np.complex128)
                 for k, rho_k in enumerate(rho):
-                    y_n += np.sum(received_signal[n:n+rho_k.size] * rho_k * np.conj(pseudo_symbols[k,sym_idx]))
-                z_ln = np.real(np.exp(-j * 2 * np.pi * (phase_idx % P) / P) * y_n)
+                    # rho_k.size = sps*(L+1-k)+1 when not truncated
+                    y_n[:rho_k.size] += received_signal[n:n+rho_k.size] * rho_k * np.conj(pseudo_symbols[k,sym_idx])
+                y_arr[sym_idx] = y_n
+                z_ln = np.real(np.exp(-j * 2 * np.pi * (phase_idx % P) / P) * np.sum(y_n))
                 z_n[sym_idx] = z_ln
 
             z_n_history.append(z_n)
@@ -143,7 +167,7 @@ if __name__ == "__main__":
         # Display cumulative detection error count
         t = np.linspace(0, symbols.size-1, num=symbols.size)
         recovered: NDArray[np.int8] = np.argmin(np.array(z_n_history)**2, axis=1) - 1
-        start_offset = int(label == "TG")
+        start_offset = int(label == "TG") * 3  # TODO make this a function of L and d_max
         error_idx, = np.where(symbols[start_offset:recovered.size+start_offset] - recovered)
         errors_ax.plot(t[error_idx], np.cumsum(np.ones(error_idx.shape)), color="k", marker="x")
 
@@ -160,8 +184,8 @@ if __name__ == "__main__":
 
     for ax in iq_axes[0, :]:
         ax: Axes
-        ax.legend()
         ax.set_xlim([10, 30])
+        ax.legend(loc="upper center", fontsize=8, ncols=4)
         ax.xaxis.set_major_locator(MultipleLocator(5))
         ax.xaxis.set_minor_locator(MultipleLocator(1))
 
@@ -169,10 +193,10 @@ if __name__ == "__main__":
         psd_ax.set_title("Power Spectral Density")
         psd_ax.set_ylabel('Amplitude [dBc]')
         psd_ax.set_xlabel('Normalized Frequency [$T_b$ = 1]')
-        psd_ax.set_ylim([-30, 10])
-        psd_ax.yaxis.set_major_locator(MultipleLocator(5))
+        psd_ax.set_ylim([-60, 0])
+        psd_ax.yaxis.set_major_locator(MultipleLocator(10))
         psd_ax.set_xlim([-2, 2])
-        psd_ax.legend(loc="upper center", fontsize=8, ncol=3)
+        psd_ax.legend(loc="upper right", fontsize=8, ncol=1)
         psd_ax.xaxis.set_major_locator(MultipleLocator(0.5))
         psd_ax.grid(which="both", linestyle=":")
 
@@ -190,3 +214,9 @@ if __name__ == "__main__":
     fig_eye.tight_layout()
     fig_eye.savefig(Path(__file__).parent.parent / "images" / "soqpsk_pam.png")
     fig_eye.show()
+
+    """
+    for i, c in zip(range(3), "rgb"):
+        for ls, yi in zip("-:", (y_arr[i].real, y_arr[i].imag)):
+            ax.plot(yi, linestyle=ls, color=c)
+    """
