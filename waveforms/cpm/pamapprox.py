@@ -20,21 +20,6 @@ def pam_unit_pulse(
     return response
 
 
-def pam_unit_pulse2(
-    phase_pulse: NDArray[np.float64],
-    mod_index: float,
-) -> NDArray[np.float64]:
-    response = np.zeros(phase_pulse.size*2, dtype=np.float64)
-    pih = mod_index*np.pi
-    response[1:phase_pulse.size+1] = (
-        np.sin(2*pih*phase_pulse) / np.sin(pih)
-    )
-    response[phase_pulse.size:] = (
-        np.sin(pih -2*pih*phase_pulse) / np.sin(pih)
-    )
-    return response
-
-
 def rho_pulses(
     pulse_filter: NDArray[np.float64],
     mod_index: float,
