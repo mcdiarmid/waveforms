@@ -16,6 +16,8 @@ from waveforms.cpm.soqpsk import (
 from waveforms.cpm.modulate import cpm_modulate
 from waveforms.cpm.pamapprox import rho_pulses
 from waveforms.lpf import kaiser_fir_lpf
+from waveforms.viterbi.trellis import FiniteStateMachine, SOQPSKTrellis
+
 
 # Set seeds so iterations on implementation can be compared better
 random.seed(1)
@@ -81,13 +83,14 @@ if __name__ == "__main__":
         freq_pulses = np.angle(modulated_signal[1:] * modulated_signal.conj()[:-1]) * sps / np.pi
 
         # Received signal
-        received_signal: NDArray[np.float64] = np.convolve(modulated_signal + noise, lpf, mode="same")
+        unfiltered_signal: NDArray[np.float64] = modulated_signal + noise
+        received_signal: NDArray[np.float64] = np.convolve(unfiltered_signal, lpf, mode="same")
 
         # Display transmitted and received signal in the time domain
         iq_ax.plot(normalized_time, modulated_signal.real, "b-", alpha=1.0, label=r"Re[$s(t)]$")
-        iq_ax.plot(normalized_time, received_signal.real, "b-", alpha=0.4, label=r"$Re[s(t)+N]$")
+        iq_ax.plot(normalized_time, unfiltered_signal.real, "b-", alpha=0.4, label=r"$Re[s(t)+N]$")
         iq_ax.plot(normalized_time, modulated_signal.imag, "r-", alpha=1.0, label=r"Im[$s(t)]$")
-        iq_ax.plot(normalized_time, received_signal.imag, "r-", alpha=0.4, label=r"$Im[s(t)+N]$")
+        iq_ax.plot(normalized_time, unfiltered_signal.imag, "r-", alpha=0.4, label=r"$Im[s(t)+N]$")
 
         pulse_ax = iq_ax.twinx()
         pulse_ax.stem(normalized_time[::sps][1:-1], symbols, markerfmt="ko", linefmt="k-", basefmt=" ", label="Symbol")
@@ -139,6 +142,9 @@ if __name__ == "__main__":
         # Branch metric increment history and cumulative winning phase state
         z_n_history = []
         phase_idx = 0
+
+        # Initialize FSM
+        fsm = FiniteStateMachine(trellis=SOQPSKTrellis)
 
         for n in range(received_signal.size-d_max):
             n = int(n)
