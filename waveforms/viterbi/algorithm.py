@@ -26,6 +26,7 @@ def viterbi_algorithm(
     # Initialize arrays
     O,N = increments.shape
     S = fsm.states
+    increments = increments * increments
     recovered_symbols = np.zeros(N)
     output = np.zeros(N)
 

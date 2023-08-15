@@ -176,7 +176,8 @@ if __name__ == "__main__":
 
         # Display cumulative detection error count
         t = np.linspace(0, symbols.size-1, num=symbols.size)
-        recovered: NDArray[np.int8] = np.argmin(np.array(z_n_history)**2, axis=1) - 1
+        # recovered: NDArray[np.int8] = np.argmin(np.array(z_n_history)**2, axis=1) - 1
+        recovered = recovered_symbols / 2
         start_offset = int(label == "TG") * 3  # TODO make this a function of L and d_max
         error_idx, = np.where(symbols[start_offset:recovered.size+start_offset] - recovered)
         errors_ax.plot(t[error_idx], np.cumsum(np.ones(error_idx.shape)), color="k", marker="x")
