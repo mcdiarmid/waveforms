@@ -17,6 +17,7 @@ from waveforms.cpm.modulate import cpm_modulate
 from waveforms.cpm.pamapprox import rho_pulses
 from waveforms.lpf import kaiser_fir_lpf
 from waveforms.viterbi.trellis import FiniteStateMachine, SOQPSKTrellis
+from waveforms.viterbi.algorithm import viterbi_algorithm
 
 
 # Set seeds so iterations on implementation can be compared better
@@ -169,6 +170,9 @@ if __name__ == "__main__":
             phase_idx += np.argmin(z_n*z_n) - 1  # should modulo 4 here, but can just apply it upon phase offset calc
 
             # TODO Feed into viterbi algorithm with SOQPSK 4x2 state trellis
+
+        increments = np.array(z_n_history).T
+        recovered_bits, recovered_symbols = viterbi_algorithm(increments, fsm)
 
         # Display cumulative detection error count
         t = np.linspace(0, symbols.size-1, num=symbols.size)

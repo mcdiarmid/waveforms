@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import numpy as np
 from numpy.typing import NDArray
 
@@ -7,11 +9,12 @@ from waveforms.viterbi.trellis import (
     Branch,
 )
 
+
 def viterbi_algorithm(
     increments: NDArray[np.float64],
     fsm: FiniteStateMachine,
     start: NDArray[np.float64] = None
-) -> NDArray[np.uint8]:
+) -> Tuple[NDArray[np.uint8], NDArray[np.int8]]:
     """
     Viterbi Algorithm
     
@@ -21,33 +24,42 @@ def viterbi_algorithm(
     :return: Array of hard decisions for the given input increments and fsm
     """
     # Initialize arrays
-    N, O = increments.shape
-    S = len(fsm.trellis.branches)
+    O,N = increments.shape
+    S = fsm.states
+    recovered_symbols = np.zeros(N)
     output = np.zeros(N)
 
     # Standard Viterbi Algorithm
-    T_1 = np.zeros((S, N))
-    T_2 = np.zeros((S, N))
+    branch_metric = np.zeros((S, 2), dtype=np.float64)
+    path = np.zeros((S, N), dtype=np.uint8)
 
     # Assign initial state likelihood based on previous viterbi iteration
-    T_1[:,0] = start or np.zeros(S)
+    branch_metric[:,0] = start or np.zeros(S)
 
-    for j in range(2, N):
+    for j in range(N):
+        # Iterate all viable states
         for i in range(S):
+            # Iterate branches to determine most likely prior state
             min_k = 0
+            min_m = np.inf
+            for branch in fsm.reverse_branch_mapping[i].values():
+                mm = branch_metric[branch.start,j%2] + increments[fsm.symbols.index(branch.out)][j]
+                if mm < min_m:
+                    min_m = mm
+                    min_k = branch.start
 
-            # Iterate branches and input to determine most likely k
-            for k in range(S):
-                # TODO figure out min_k
-                pass
+            branch_metric[i,(j+1)%2] = min_m
+            path[i,j] = min_k
 
-            T_1[i,j] = T_1[min_k,j-1]
-            T_2[i,j] = min_k
+        branch_metric[:,(j+1)%2] -= np.min(branch_metric[:,(j+1)%2])
 
-    # TODO will need to modify FSM class for convenient use here
-    z = np.argmin(T_1[:, -1])
+    # Traceback
+    state = np.argmin(branch_metric[:, -1])
     for j in reversed(range(N)):
-        output[j] = ...
-        z = T_2[z, j]
+        print(j, state, branch, fsm.reverse_transitions[state])
+        branch = fsm.reverse_transitions[state][path[state,j]]
+        output[j] = branch.inp
+        recovered_symbols[j] = branch.out
+        state = path[state, j]
 
-    return output
+    return output, recovered_symbols

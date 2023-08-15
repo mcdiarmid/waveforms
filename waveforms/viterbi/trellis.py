@@ -35,12 +35,12 @@ def reverse_branches(state: int, branches: List[Branch]) -> List[Branch]:
     return filter_branches(state, branches, attr="end")
 
 
-def forward_map(state: int, branches: List[Branch]) -> Dict[int, int]:
-    return {branch.inp: branch.end for branch in filter_branches(state, branches, "start")}
+def forward_map(state: int, branches: List[Branch]) -> Dict[int, Branch]:
+    return {branch.inp: branch for branch in filter_branches(state, branches, "start")}
 
 
-def reverse_map(state: int, branches: List[Branch]) -> Dict[int, int]:
-    return {branch.out: branch.start for branch in filter_branches(state, branches, "end")}
+def reverse_map(state: int, branches: List[Branch]) -> Dict[int, Branch]:
+    return {branch.out: branch for branch in filter_branches(state, branches, "end")}
 
 
 class FiniteStateMachine:
@@ -49,22 +49,35 @@ class FiniteStateMachine:
         self.state = start
         # TODO check trellis validity
 
-        # Generate forward and reverse map for quick access
-        states = max(trellis.branches, key=lambda b: b.start).start
-        self.forward_mapping = [forward_map(s, trellis.branches) for s in range(states+1)]
-        self.reverse_mapping = [reverse_map(s, trellis.branches) for s in range(states+1)]
+        # Generate forward and reverse maps for quick access
+        self.states = max(trellis.branches, key=lambda b: b.start).start + 1
+        self.forward_branch_mapping = [
+            forward_map(s, trellis.branches) for s in range(self.states)
+        ]
+        self.reverse_branch_mapping = [
+            reverse_map(s, trellis.branches) for s in range(self.states)
+        ]
+        self.forward_transitions = [
+            {b.end: b for b in forward_branches(st, trellis.branches)}
+            for st in range(self.states)
+        ]
+        self.reverse_transitions = [
+            {b.start: b for b in reverse_branches(st, trellis.branches)}
+            for st in range(self.states)
+        ]
+        self.symbols = sorted(set([branch.out for branch in trellis.branches]))
 
     def next(self, inp: int):
-        if inp not in self.forward_mapping[self.state]:
+        if inp not in self.forward_branch_mapping[self.state]:
             _logger.warning(f"No branch corresponding to input {inp} from starting state {self.state}")
             return
-        self.state = self.forward_mapping[self.state][inp]
+        self.state = self.forward_branch_mapping[self.state][inp].end
 
     def prev(self, out: int):
-        if out not in self.reverse_mapping[self.state]:
+        if out not in self.reverse_branch_mapping[self.state]:
             _logger.warning(f"No branch corresponding to output {out} from ending state {self.state}")
             return
-        self.state = self.reverse_mapping[self.state][out]
+        self.state = self.reverse_branch_mapping[self.state][out].start
 
 
 SOQPSKTrellis = Trellis(
