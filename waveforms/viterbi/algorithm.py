@@ -56,7 +56,6 @@ def viterbi_algorithm(
     # Traceback
     state = np.argmin(branch_metric[:, -1])
     for j in reversed(range(N)):
-        print(j, state, branch, fsm.reverse_transitions[state])
         branch = fsm.reverse_transitions[state][path[state,j]]
         output[j] = branch.inp
         recovered_symbols[j] = branch.out
