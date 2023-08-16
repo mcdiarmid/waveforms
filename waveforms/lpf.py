@@ -15,6 +15,9 @@ def kaiser_fir_lpf(
 
     :param sps: Samples per symbol
     :param f_cutoff: Cutoff frequency
+    :param width: Transition width
+    :param ripple_db: Supression after transition
+    :return: Filter taps
     """
     nyq_rate = sps / 2
     N, beta = kaiserord(ripple_db, width or 1/sps)
