@@ -26,7 +26,7 @@ def viterbi_algorithm(
     # Initialize arrays
     O,N = increments.shape
     S = fsm.states
-    increments = increments * increments
+    increments = np.abs(increments)
     recovered_symbols = np.zeros(N)
     output = np.zeros(N)
 
@@ -55,7 +55,7 @@ def viterbi_algorithm(
         branch_metric[:,(j+1)%2] -= np.min(branch_metric[:,(j+1)%2])
 
     # Traceback
-    state = np.argmin(branch_metric[:, -1])
+    state = np.argmin(branch_metric[:, N%2])
     for j in reversed(range(N)):
         branch = fsm.reverse_transitions[state][path[state,j]]
         output[j] = branch.inp
