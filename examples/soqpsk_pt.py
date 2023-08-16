@@ -15,7 +15,7 @@ from waveforms.cpm.soqpsk import (
 )
 from waveforms.cpm.helpers import normalize_cpm_filter
 from waveforms.cpm.modulate import cpm_modulate
-from waveforms.lpf import hann_window
+from waveforms.lpf import kaiser_fir_lpf
 
 
 DATA_HEADER = b"\x1b\x1bHello World!"
@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
 
     fig, pt_axes = plt.subplots(3, 2, figsize=(12, 10), dpi=100)
-    lpf = hann_window(sps, 1.8) / sps
+    lpf = kaiser_fir_lpf(sps, 0.50)
 
     # Simulate the following SOQPSK Waveforms
     pulses_colors_labels = (
