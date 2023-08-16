@@ -85,7 +85,8 @@ if __name__ == "__main__":
 
         # Received signal
         unfiltered_signal: NDArray[np.float64] = modulated_signal + noise
-        received_signal: NDArray[np.float64] = np.convolve(unfiltered_signal, lpf, mode="same")
+        # received_signal: NDArray[np.float64] = np.convolve(unfiltered_signal, lpf, mode="same")
+        received_signal = unfiltered_signal
 
         # Display transmitted and received signal in the time domain
         iq_ax.plot(normalized_time, modulated_signal.real, "b-", alpha=1.0, label=r"Re[$s(t)]$")
@@ -148,7 +149,6 @@ if __name__ == "__main__":
         fsm = FiniteStateMachine(trellis=SOQPSKTrellis)
 
         for n in range(received_signal.size-d_max):
-            n = int(n)
             # Timing recovery (for now we live in an perfectly synchronized world)
             # TODO implement timing and phase recovery, along with introduced imperfections
             if (n + L*sps/2) % sps:
@@ -158,19 +158,21 @@ if __name__ == "__main__":
             z_n = np.zeros(3)
             y_arr = np.zeros((3, d_max), np.complex128)
             for sym_idx in range(3):
+                # Independent of current state
                 y_n = np.zeros(d_max, dtype=np.complex128)
                 for k, rho_k in enumerate(rho):
-                    # rho_k.size = sps*(L+1-k)+1 when not truncated
                     y_n[:rho_k.size] += received_signal[n:n+rho_k.size] * rho_k * np.conj(pseudo_symbols[k,sym_idx])
                 y_arr[sym_idx] = y_n
+
+                # Trellis/phase state dependent
                 z_ln = np.real(np.exp(-j * 2 * np.pi * (phase_idx % P) / P) * np.sum(y_n))
                 z_n[sym_idx] = z_ln
 
+            # z_ln is trellis/phase state dependent, should execute a short length viterbi algorithm to have a more accurate
             z_n_history.append(z_n)
             phase_idx += np.argmin(z_n*z_n) - 1  # should modulo 4 here, but can just apply it upon phase offset calc
 
-            # TODO Feed into viterbi algorithm with SOQPSK 4x2 state trellis
-
+        # Viterbi algorithm with SOQPSK 8x1 state trellis, should execute on increments[n:n+2*L] per n increment
         increments = np.array(z_n_history).T
         recovered_bits, recovered_symbols = viterbi_algorithm(increments, fsm)
 
