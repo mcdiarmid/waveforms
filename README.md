@@ -5,23 +5,17 @@ With respect to the OSI model, this will be primarily focused on layer 1, with s
 
 ## Topics
 The plan is to explore all of the following concepts in this repository:
-- RF Basics
-  - Link budgets
-  - Transmitter and receiver systems
-  - Polarizaion
-  - Antennas
 - Common RF Plots
-  - Power Spectral Density (PSD)
-  - Eye Diagram
+  - Power Spectral Density (PSD) ✔️
+  - Eye Diagram ✔️
   - Constellation
-  - Modulation performance curve
+  - Detection efficiency performance curve
 - Digital Signal Processing Concepts
   - S-domain
   - Z-domain
   - Continuous to discrete time mathematics
   - Finite Impulse Response (FIR) Filters
   - Infinite Impulse Response (IIR) Filter
-  - Feild Programmable Gate Arrays (FPGAs)
 - Modulation Techniques
   - Amplitude Modulation (AM)
   - Frequency Modulation (PM)
@@ -29,17 +23,15 @@ The plan is to explore all of the following concepts in this repository:
   - Frequency Shift Keying (FSK)
   - Phase Shift Keying (PSK)
   - Continuous Phase Modulation (CPM) ✔️
-  - Continuous Phase Frequency Shift Keying (CPFSK)
   - Quadrature Amplitude Modulation (QAM)
   - Orthogonal Frequency Division Multiplexing (OFDM)
 - Demodulation & Detection
   - Theoretical detection efficiency
   - Matched filters (MF)
-  - Trellis/viterbi demodulation
+  - Trellis/viterbi demodulation ✔️
   - Timing error detectors (TEDs)
   - Phase error detectors (PEDs)
   - Adaptive equalization
-- Foreward Error Correction (FEC)
 - Standards
   - IRIG106 ✔️
   - CCSDS
