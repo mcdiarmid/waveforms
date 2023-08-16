@@ -16,4 +16,4 @@ class SOQPSKPrecoder:
         i_arr[self.i::2] = -1
         self.i = (self.i + len(bits)) % 2
         self.mem = a[-2:]
-        return i_arr*(2*a[1:-1] - 1)*(a[2:] - a[:-2])
+        return i_arr*(2*a[1:-1] - 1)*(a[:-2] - a[2:])
