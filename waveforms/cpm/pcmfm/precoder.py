@@ -2,7 +2,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 
-class PCMFMSymbolMapper:    
+class PCMFMSymbolMapper:
     def __call__(
         self,
         bits: NDArray[np.uint8],
