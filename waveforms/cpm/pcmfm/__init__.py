@@ -1,4 +1,4 @@
-from .mapper import PCMFMSymbolMapper
+from .precoder import PCMFMSymbolMapper
 from .pulse_filters import freq_pulse_pcmfm
 
 PCMFM_NUMER = 7
