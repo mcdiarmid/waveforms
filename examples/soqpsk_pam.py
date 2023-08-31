@@ -84,8 +84,7 @@ if __name__ == "__main__":
         freq_pulses = np.angle(modulated_signal[1:] * modulated_signal.conj()[:-1]) * sps / np.pi
 
         # Received signal
-        unfiltered_signal: NDArray[np.float64] = modulated_signal + noise
-        # received_signal: NDArray[np.float64] = np.convolve(unfiltered_signal, lpf, mode="same")
+        unfiltered_signal: NDArray[np.complex128] = modulated_signal + noise
         received_signal = unfiltered_signal
 
         # Display transmitted and received signal in the time domain
@@ -131,7 +130,7 @@ if __name__ == "__main__":
         c0 = 10 * np.log10(np.power(10, c0n0/10) - np.power(10, n0/10))
         ebn0 = c0 - 2.95 - 0 - n0 
 
-        # PAM De-composition
+        # PAM De-composition rho pulses/matched filters
         rho = rho_pulses(
             pulse_filter,
             mod_index,
@@ -140,6 +139,21 @@ if __name__ == "__main__":
         )
         d_max = max([rho_k.size for rho_k in rho])
         L = int(pulse_filter.size/sps)
+
+        # Match filter outputs
+        k_max, num_symbols = pseudo_symbols.shape
+        mf_outputs = np.zeros((num_symbols, received_signal.size), dtype=np.complex128)
+        for sym_idx in range(num_symbols):
+            for k in range(k_max):
+                mf_outputs[sym_idx, :] += (
+                    np.convolve(received_signal, rho[k], mode="same") *
+                    np.conj(pseudo_symbols[k, sym_idx])
+                )
+
+        # state_history = np.zeros(L)
+        # for each timed sample n:
+        #     1. calculate branch increment for each hypothetical symbol
+        #     2. perform viterbi algorithm to determine
 
         # Branch metric increment history and cumulative winning phase state
         z_n_history = []
@@ -178,7 +192,6 @@ if __name__ == "__main__":
 
         # Display cumulative detection error count
         t = np.linspace(0, symbols.size-1, num=symbols.size)
-        # recovered: NDArray[np.int8] = np.argmin(np.array(z_n_history)**2, axis=1) - 1
         recovered = recovered_symbols / 2
         start_offset = int(label == "TG") * 3  # TODO make this a function of L and d_max
         error_idx, = np.where(symbols[start_offset:recovered.size+start_offset] - recovered)
@@ -227,9 +240,3 @@ if __name__ == "__main__":
     fig_eye.tight_layout()
     fig_eye.savefig(Path(__file__).parent.parent / "images" / "soqpsk_pam.png")
     fig_eye.show()
-
-    """
-    for i, c in zip(range(3), "rgb"):
-        for ls, yi in zip("-:", (y_arr[i].real, y_arr[i].imag)):
-            ax.plot(yi, linestyle=ls, color=c)
-    """
