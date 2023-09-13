@@ -77,7 +77,7 @@ if __name__ == "__main__":
         )
         noise = np.random.normal(
             loc=0,
-            scale=1*np.sqrt(2)/2,
+            scale=0.5*np.sqrt(2)/2,
             size=(modulated_signal.size, 2)
         ).view(np.complex128).flatten()
         modulated_signal *= np.exp(-j*np.pi/4)
@@ -151,16 +151,63 @@ if __name__ == "__main__":
                 )
 
         # state_history = np.zeros(L)
+        # phase_state_index ($I_{n-L}$)
         # for each timed sample n:
         #     1. calculate branch increment for each hypothetical symbol
-        #     2. perform viterbi algorithm to determine
+        #     2. perform viterbi algorithm to determine n-L+1 symbol
+        #       a. Inputs Phase state of n-L, Hypothetical symbols n-L+1..n
+        #       b. Outputs 
+        #     3. Therefore, a GNURadio style block would require history/delay of L and tracking phase state
+
+        # Initialize FSM
+        fsm = FiniteStateMachine(trellis=SOQPSKTrellis)
+        phase_idx: int = 0
+        correlative_state_symbols = np.zeros(L, dtype=np.int8)
+        correlative_state_increments = np.zeros((num_symbols, L), dtype=np.float64)
+        output_symbols = []
+        output_bits = []
+        debug_closed = False
+
+        for n in range(received_signal.size-L*sps):
+            if (n + L*sps/2) % sps:
+                continue
+
+            correlative_state_symbols = np.roll(correlative_state_symbols, -1)
+            correlative_state_increments = np.roll(correlative_state_increments, -1, axis=1)
+            for sym_idx in range(num_symbols):
+                hypothetical_idx = phase_idx + correlative_state_symbols[:-1].sum()
+                correlative_state_increments[sym_idx, -1] = np.real(
+                    np.exp(-j * 2 * np.pi * (hypothetical_idx % P) / P) * mf_outputs[sym_idx, n+sps*L]
+                )
+
+            # z_ln = np.real(np.exp(-j * 2 * np.pi * (phase_idx % P) / P) * np.sum(y_n))
+            rbits, rsyms = viterbi_algorithm(
+                correlative_state_increments,
+                fsm,
+                start=phase_idx%P
+            )
+            correlative_state_symbols[-1] = rsyms[-1] / 2
+            phase_idx += correlative_state_symbols[0]
+            output_symbols.append(correlative_state_symbols[0])
+            output_bits.append(rbits[0])
+
+            if label == "TG" and not debug_closed:
+                print(f'''\
+Original Symbols: {symbols[n//sps:n//sps+L]}
+State I_{{n-L}}: {phase_idx%P}
+Memory \\alpha_{{n}}: {correlative_state_symbols.astype(int)}
+MF Outputs: {correlative_state_increments}'''
+                )
+                v = input("Y to close:")
+                debug_closed = v.upper().startswith('Y')
+
+        iter_va_output_symbols = np.array(output_symbols, dtype=np.int8)
+        iter_va_output_bits = np.array(output_bits, dtype=np.uint8)
+        iter_va_errors, = np.where(symbols[:iter_va_output_symbols.size]-iter_va_output_symbols)
 
         # Branch metric increment history and cumulative winning phase state
         z_n_history = []
         phase_idx = 0
-
-        # Initialize FSM
-        fsm = FiniteStateMachine(trellis=SOQPSKTrellis)
 
         for n in range(received_signal.size-d_max):
             # Timing recovery (for now we live in an perfectly synchronized world)
@@ -196,6 +243,7 @@ if __name__ == "__main__":
         start_offset = int(label == "TG") * 3  # TODO make this a function of L and d_max
         error_idx, = np.where(symbols[start_offset:recovered.size+start_offset] - recovered)
         errors_ax.plot(t[error_idx], np.cumsum(np.ones(error_idx.shape)), color="k", marker="x")
+        print(len(errors_1), len(error_idx))
 
         # Plot Rho pulses used for PAM Approximation
         for k, rho_k, fmt in zip((0, 1), rho, ("b-", "g--")):

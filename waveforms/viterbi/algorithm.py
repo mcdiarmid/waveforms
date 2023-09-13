@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -9,7 +9,7 @@ from waveforms.viterbi.trellis import FiniteStateMachine
 def viterbi_algorithm(
     increments: NDArray[np.float64],
     fsm: FiniteStateMachine,
-    start: NDArray[np.float64] = None
+    start: Union[NDArray[np.float64], int] = None
 ) -> Tuple[NDArray[np.uint8], NDArray[np.int8]]:
     """
     Viterbi Algorithm
@@ -31,6 +31,9 @@ def viterbi_algorithm(
     path = np.zeros((n_states, n_transitions), dtype=np.uint8)
 
     # Assign initial state likelihood based on previous viterbi iteration
+    if isinstance(start, int):
+        start = [np.inf if i != start else 0 for i in range(n_states)]
+
     branch_metric[:, 0] = start or np.zeros(n_states)
 
     # Calculate branch metrics and winning paths going forward
