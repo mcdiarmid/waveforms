@@ -58,10 +58,10 @@ if __name__ == "__main__":
 
     # Simulate the following SOQPSK Waveforms
     pulses_colors_labels = (
-        (freq_pulse_soqpsk_mil(sps=sps), 'crimson', 'MIL', 1/P),
-        (freq_pulse_soqpsk_tg(sps=sps), 'royalblue', 'TG', 1/P),
+        (freq_pulse_soqpsk_mil(sps=sps), 'MIL', 1/P),
+        (freq_pulse_soqpsk_tg(sps=sps), 'TG', 1/P),
     )
-    for i, (pulse_filter, color, label, mod_index) in enumerate(pulses_colors_labels):
+    for i, (pulse_filter, label, mod_index) in enumerate(pulses_colors_labels):
         # Assign axes
         iq_ax: Axes = iq_axes[0, i]
         psd_ax: Axes = iq_axes[1, i]
@@ -77,7 +77,7 @@ if __name__ == "__main__":
         )
         noise = np.random.normal(
             loc=0,
-            scale=0.5*np.sqrt(2)/2,
+            scale=1*np.sqrt(2)/2,
             size=(modulated_signal.size, 2)
         ).view(np.complex128).flatten()
         modulated_signal *= np.exp(-j*np.pi/4)
@@ -145,8 +145,10 @@ if __name__ == "__main__":
         mf_outputs = np.zeros((num_symbols, received_signal.size), dtype=np.complex128)
         for sym_idx in range(num_symbols):
             for k in range(k_max):
+                # Zero-pad all to length d_max for alignment
+                rk = np.concatenate((rho[k], np.zeros(d_max-rho[k].size)))
                 mf_outputs[sym_idx, :] += (
-                    np.convolve(received_signal, rho[k], mode="same") *
+                    np.convolve(received_signal, rk, mode="same") *
                     np.conj(pseudo_symbols[k, sym_idx])
                 )
 
@@ -161,50 +163,9 @@ if __name__ == "__main__":
 
         # Initialize FSM
         fsm = FiniteStateMachine(trellis=SOQPSKTrellis)
-        phase_idx: int = 0
-        correlative_state_symbols = np.zeros(L, dtype=np.int8)
-        correlative_state_increments = np.zeros((num_symbols, L), dtype=np.float64)
-        output_symbols = []
-        output_bits = []
-        debug_closed = False
 
-        for n in range(received_signal.size-L*sps):
-            if (n + L*sps/2) % sps:
-                continue
 
-            correlative_state_symbols = np.roll(correlative_state_symbols, -1)
-            correlative_state_increments = np.roll(correlative_state_increments, -1, axis=1)
-            for sym_idx in range(num_symbols):
-                hypothetical_idx = phase_idx + correlative_state_symbols[:-1].sum()
-                correlative_state_increments[sym_idx, -1] = np.real(
-                    np.exp(-j * 2 * np.pi * (hypothetical_idx % P) / P) * mf_outputs[sym_idx, n+sps*L]
-                )
-
-            # z_ln = np.real(np.exp(-j * 2 * np.pi * (phase_idx % P) / P) * np.sum(y_n))
-            rbits, rsyms = viterbi_algorithm(
-                correlative_state_increments,
-                fsm,
-                start=phase_idx%P
-            )
-            correlative_state_symbols[-1] = rsyms[-1] / 2
-            phase_idx += correlative_state_symbols[0]
-            output_symbols.append(correlative_state_symbols[0])
-            output_bits.append(rbits[0])
-
-            if label == "TG" and not debug_closed:
-                print(f'''\
-Original Symbols: {symbols[n//sps:n//sps+L]}
-State I_{{n-L}}: {phase_idx%P}
-Memory \\alpha_{{n}}: {correlative_state_symbols.astype(int)}
-MF Outputs: {correlative_state_increments}'''
-                )
-                v = input("Y to close:")
-                debug_closed = v.upper().startswith('Y')
-
-        iter_va_output_symbols = np.array(output_symbols, dtype=np.int8)
-        iter_va_output_bits = np.array(output_bits, dtype=np.uint8)
-        iter_va_errors, = np.where(symbols[:iter_va_output_symbols.size]-iter_va_output_symbols)
-
+        # THIS WIP VARIATION ONLY DOES ONE LONG VA TRACEBACK
         # Branch metric increment history and cumulative winning phase state
         z_n_history = []
         phase_idx = 0
@@ -243,7 +204,49 @@ MF Outputs: {correlative_state_increments}'''
         start_offset = int(label == "TG") * 3  # TODO make this a function of L and d_max
         error_idx, = np.where(symbols[start_offset:recovered.size+start_offset] - recovered)
         errors_ax.plot(t[error_idx], np.cumsum(np.ones(error_idx.shape)), color="k", marker="x")
-        print(len(errors_1), len(error_idx))
+
+
+        # THIS WIP VARIATION ATTEMPTS TO DO A VA TRACEBACK ON EACH SYMBOL
+        phase_idx: int = 0  # Phase state from symbols n=(-inf,n-L)
+        trace_length = 2*L if label == "TG" else 8  # What does the literature say?
+        timing_offset = -2 if label == "TG" else -4
+        correlative_state_symbols = np.zeros(trace_length, dtype=np.int8)
+        correlative_state_increments = np.zeros((num_symbols, trace_length), dtype=np.float64)
+        output_symbols = []
+        output_bits = []
+
+        for n in range(received_signal.size-trace_length*sps):
+            # Placeholder timing recovery, will replace with Non-data-aided method
+            if (n+timing_offset) % sps:
+                continue
+
+            # Remove oldest correlative symbol and increment
+            correlative_state_symbols = np.roll(correlative_state_symbols, -1)
+            correlative_state_increments = np.roll(correlative_state_increments, -1, axis=1)
+
+            # Calculate newest correlative branch metric increment for each hypothetical symbol
+            for sym_idx in range(num_symbols):
+                hypothetical_idx = phase_idx + correlative_state_symbols[:-1].sum()
+                correlative_state_increments[sym_idx, -1] = np.real(
+                    np.exp(-j * 2 * np.pi * (hypothetical_idx % P) / P) * mf_outputs[sym_idx, n+sps*trace_length]
+                )
+
+            # VA Traceback, update n-L phase state for next iteration, emit n-L symbol and bit
+            rbits, rsyms = viterbi_algorithm(
+                correlative_state_increments,
+                fsm,
+                start=phase_idx%P
+            )
+            correlative_state_symbols[-1] = rsyms[-1] / 2
+            phase_idx += correlative_state_symbols[0]
+            output_symbols.append(correlative_state_symbols[0])
+            output_bits.append(rbits[0])
+
+        iter_va_output_symbols = np.array(output_symbols, dtype=np.int8)
+        iter_va_output_bits = np.array(output_bits, dtype=np.uint8)
+        iter_va_errors, = np.where(symbols[:iter_va_output_symbols.size]-iter_va_output_symbols)
+
+        print(len(iter_va_errors), len(error_idx))
 
         # Plot Rho pulses used for PAM Approximation
         for k, rho_k, fmt in zip((0, 1), rho, ("b-", "g--")):
@@ -280,7 +283,7 @@ MF Outputs: {correlative_state_increments}'''
 
     for ax in iq_axes[3, :]:
         ax.grid(which="both", linestyle=":")
-        ax.set_ylabel("Cumulative Errors")
+        ax.set_ylabel("Cumulative Symbol Errors")
         ax.set_xlabel("Symbol Time [nT]")
         ax.set_ylim(0, None)
         ax.set_xlim(0, symbols.size-1)
