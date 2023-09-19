@@ -14,11 +14,11 @@ from waveforms.cpm.soqpsk import (
     freq_pulse_soqpsk_mil,
 )
 from waveforms.cpm.modulate import cpm_modulate
+from waveforms.cpm.helpers import normalize_cpm_filter
 from waveforms.cpm.pamapprox import rho_pulses
-from waveforms.lpf import kaiser_fir_lpf
 from waveforms.viterbi.trellis import (
     FiniteStateMachine,
-    SOQPSKTrellis4x2,
+    # SOQPSKTrellis4x2,
     SOQPSKTrellis8x1,
 )
 from waveforms.viterbi.algorithm import viterbi_algorithm, SOQPSKTrellisDetector
@@ -28,7 +28,7 @@ from waveforms.viterbi.algorithm import viterbi_algorithm, SOQPSKTrellisDetector
 random.seed(1)
 np.random.seed(1)
 DATA_HEADER = b"\x00\x1b\x1b\x00Hello World!"
-DATA_EXTRA = bytes([random.randint(0,0xff) for i in range(2500)])
+DATA_EXTRA = bytes([random.randint(0,0xff) for _ in range(2500)])
 DATA_BUFFER = DATA_HEADER + DATA_EXTRA
 j = complex(0, 1)
 
@@ -39,8 +39,7 @@ if __name__ == "__main__":
     fft_size = 2**9
     pulse_pad = 0.5
     P = 4
-    # lpf = np.ones(1)  # Placeholder low pass filter
-    lpf = kaiser_fir_lpf(sps, 0.50)
+    alpha = 1, 0
 
     # Bits of information to transmit
     bit_array = np.unpackbits(np.frombuffer(DATA_BUFFER, dtype=np.uint8))
@@ -81,7 +80,7 @@ if __name__ == "__main__":
         )
         noise = np.random.normal(
             loc=0,
-            scale=1*np.sqrt(2)/2,
+            scale=0.5*np.sqrt(2)/2,
             size=(modulated_signal.size, 2)
         ).view(np.complex128).flatten()
         modulated_signal *= np.exp(-j*np.pi/4)
@@ -134,6 +133,16 @@ if __name__ == "__main__":
         c0 = 10 * np.log10(np.power(10, c0n0/10) - np.power(10, n0/10))
         ebn0 = c0 - 2.95 - 0 - n0 
 
+        # Pulse Truncation Filters
+        L = int(pulse_filter.size/sps)
+        truncated_freq_pulse = pulse_filter[int((L-1)*sps/2):int((L+1)*sps/2)]
+        truncated_phase_pulse = np.cumsum(normalize_cpm_filter(sps=sps, g=truncated_freq_pulse)) / sps
+        # truncated_phase_pulse = np.cumsum(truncated_freq_pulse) / sps
+        mf_outputs_pt = np.zeros((3, received_signal.size), dtype=np.complex128)
+        mf_outputs_pt[0, :] = np.convolve(received_signal, np.exp(-j*2*np.pi*mod_index*-1*truncated_phase_pulse), mode="same")
+        mf_outputs_pt[1, :] = np.convolve(received_signal, np.exp(-j*2*np.pi*mod_index*0*truncated_phase_pulse), mode="same")
+        mf_outputs_pt[2, :] = np.convolve(received_signal, np.exp(-j*2*np.pi*mod_index*+1*truncated_phase_pulse), mode="same")
+
         # PAM De-composition rho pulses/matched filters
         rho = rho_pulses(
             pulse_filter,
@@ -142,16 +151,15 @@ if __name__ == "__main__":
             k_max=2
         )
         d_max = max([rho_k.size for rho_k in rho])
-        L = int(pulse_filter.size/sps)
 
         # Match filter outputs
         k_max, num_symbols = pseudo_symbols.shape
-        mf_outputs = np.zeros((num_symbols, received_signal.size), dtype=np.complex128)
+        mf_outputs_pam = np.zeros((num_symbols, received_signal.size), dtype=np.complex128)
         for sym_idx in range(num_symbols):
             for k in range(k_max):
                 # Zero-pad all to length d_max for alignment
                 rk = np.concatenate((rho[k], np.zeros(d_max-rho[k].size)))
-                mf_outputs[sym_idx, :] += (
+                mf_outputs_pam[sym_idx, :] += (
                     np.convolve(received_signal, rk, mode="same") *
                     np.conj(pseudo_symbols[k, sym_idx])
                 )
@@ -177,9 +185,8 @@ if __name__ == "__main__":
         correlative_state_increments = np.zeros((num_symbols, trace_length), dtype=np.float64)
         output_symbols = []
         output_bits = []
-        output_symbols2 = []
-        output_bits2 = []
 
+        # PAM only old Bad implementation
         for n in range(received_signal.size-trace_length*sps):
             # Placeholder timing recovery, will replace with Non-data-aided method
             if (n+timing_offset) % sps:
@@ -195,7 +202,7 @@ if __name__ == "__main__":
             for sym_idx in range(num_symbols):
                 hypothetical_idx = phase_idx + correlative_state_symbols[:-1].sum()
                 correlative_state_increments[sym_idx, -1] = np.real(
-                    np.exp(-j * 2 * np.pi * (hypothetical_idx % P) / P) * mf_outputs[sym_idx, n+sps*trace_length]
+                    np.exp(-j * 2 * np.pi * (hypothetical_idx % P) / P) * mf_outputs_pam[sym_idx, n+sps*trace_length]
                 )
 
             # VA Traceback, update n-L phase state for next iteration, emit n-L symbol and bit
@@ -209,27 +216,43 @@ if __name__ == "__main__":
             output_symbols.append(correlative_state_symbols[0])
             output_bits.append(rbits[0])
 
-            # Second implementation
-            rbits2, rsyms2 = det.va_iteration(mf_outputs[:, n+sps*trace_length])
-            output_symbols2.append(rsyms2[0] / 2)
-            output_bits2.append(rbits2[0])
-
         iter_va_output_symbols = np.array(output_symbols, dtype=np.int8)
         iter_va_output_bits = np.array(output_bits, dtype=np.uint8)
         iter_va_errors, = np.where(symbols[:iter_va_output_symbols.size]-iter_va_output_symbols)
 
-        iter_va_output_symbols2 = np.array(output_symbols2, dtype=np.int8)
-        iter_va_output_bits2 = np.array(output_bits2, dtype=np.uint8)
+        # PAM/PT implementation
+        # for mf_outputs, detector_type in zip((mf_outputs_pam,), ("PAM",)):
+        for mf_outputs, detector_type in zip((mf_outputs_pt,), ("PT",)):
+        # for mf_outputs, detector_type in zip((mf_outputs_pam, mf_outputs_pt), ("PAM", "PT")):
+            det = SOQPSKTrellisDetector(length=2)
+            output_symbols = []
+            output_bits = []
+            if detector_type == "PT":
+                delay = 1
+                timing_offset = int(sps/2)
+            else:
+                delay = 0
+                timing_offset = -1 if label == "TG" else -4  # TODO Magic numbers
 
-        # Display cumulative detection error count
-        # TODO Get rid of magic numbers
-        aligned_syms = symbols[8-det.length:] if label == "MIL" else symbols[16-det.length:]
-        min_size = min(aligned_syms.size, iter_va_output_symbols2.size)
-        t = np.linspace(0, min_size-1, num=min_size)
-        error_idx, = np.where(iter_va_output_symbols2[:min_size]-aligned_syms[:min_size])
-        errors_ax.plot(t[error_idx], np.cumsum(np.ones(error_idx.shape)), color="k", marker="x")
+            for n in range(received_signal.size-det.length*sps):
+                # Placeholder timing recovery, will replace with Non-data-aided method
+                if (n+timing_offset) % sps:
+                    continue
 
-        print(len(error_idx), len(iter_va_errors))
+                # Second implementation
+                rbits, rsyms = det.va_iteration(mf_outputs[:, n])
+                output_symbols.append(rsyms[0] / 2)
+                output_bits.append(rbits[0])
+
+            # Calculate number of errors, and visualize
+            iter_va_output_symbols = np.array(output_symbols[det.length:], dtype=np.int8)
+            iter_va_output_bits = np.array(output_bits, dtype=np.uint8)
+            aligned_symbols = symbols[delay:]
+            min_size = min(aligned_symbols.size, iter_va_output_symbols.size)
+            t = np.linspace(0, min_size-1, num=min_size)
+            error_idx, = np.where(iter_va_output_symbols[:min_size]-aligned_symbols[:min_size])
+            print(f"SOQPSK-{label} {detector_type} SER = {len(error_idx)/min_size:e}")
+            errors_ax.plot(t[error_idx], np.cumsum(np.ones(error_idx.shape)), marker="x", label=detector_type)
 
         # Plot Rho pulses used for PAM Approximation
         for k, rho_k, fmt in zip(range(k_max), rho, ("b-", "g--")):
