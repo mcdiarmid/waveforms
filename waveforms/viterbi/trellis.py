@@ -16,7 +16,7 @@ class Branch:
 
 @dataclass
 class Trellis:
-    branches: List[Branch]
+    branches: List[List[Branch]]
 
 
 def filter_branches(
@@ -44,67 +44,96 @@ def reverse_map(state: int, branches: List[Branch]) -> Dict[int, Branch]:
 
 
 class FiniteStateMachine:
-    def __init__(self, trellis: Trellis, start: int = 0):
+    def __init__(self, trellis: Trellis):
         self.trellis = trellis
-        self.state = start
         # TODO check trellis validity
 
         # Generate forward and reverse maps for quick access
-        self.states = max(trellis.branches, key=lambda b: b.start).start + 1
+        self.branches_per_column = len(trellis.branches[0])
+        self.columns = len(trellis.branches)
+        self.states = max(trellis.branches[0], key=lambda b: b.end).end + 1
         self.forward_branch_mapping = [
-            forward_map(s, trellis.branches) for s in range(self.states)
+            [
+                forward_map(st, column)
+                for st in range(self.states)
+            ]
+            for column in trellis.branches
         ]
         self.reverse_branch_mapping = [
-            reverse_map(s, trellis.branches) for s in range(self.states)
+            [
+                reverse_map(st, column)
+                for st in range(self.states)
+            ]
+            for column in trellis.branches
         ]
         self.forward_transitions = [
-            {b.end: b for b in forward_branches(st, trellis.branches)}
-            for st in range(self.states)
+            [
+                {b.end: b for b in forward_branches(st, column)}
+                for st in range(self.states)
+            ]
+            for column in trellis.branches
         ]
         self.reverse_transitions = [
-            {b.start: b for b in reverse_branches(st, trellis.branches)}
-            for st in range(self.states)
+            [
+                {b.start: b for b in reverse_branches(st, column)}
+                for st in range(self.states)
+            ]
+            for column in trellis.branches
         ]
-        self.symbols = sorted(set([branch.out for branch in trellis.branches]))
-
-    def next(self, inp: int):
-        if inp not in self.forward_branch_mapping[self.state]:
-            _logger.warning(f"No branch corresponding to input {inp} from starting state {self.state}")
-            return
-        self.state = self.forward_branch_mapping[self.state][inp].end
-
-    def prev(self, out: int):
-        if out not in self.reverse_branch_mapping[self.state]:
-            _logger.warning(f"No branch corresponding to output {out} from ending state {self.state}")
-            return
-        self.state = self.reverse_branch_mapping[self.state][out].start
+        self.symbols = sorted(set([branch.out for column in trellis.branches for branch in column]))
+        self.symbol_idx_map = {sym: i for i, sym in enumerate(self.symbols)}
 
 
-SOQPSKTrellis = Trellis(
+SOQPSKTrellis8x1 = Trellis(
     branches=[
-        # Column 1 (n-even/I)
-        Branch(inp=0, out=0, start=0, end=4),
-        Branch(inp=1, out=+2, start=0, end=6),
-        Branch(inp=0, out=0, start=1, end=5),
-        Branch(inp=1, out=-2, start=1, end=7),
-        Branch(inp=0, out=-2, start=2, end=4),
-        Branch(inp=1, out=0, start=2, end=6),
-        Branch(inp=0, out=+2, start=3, end=5),
-        Branch(inp=1, out=0, start=3, end=7),
+        [
+            # Column 1 (n-even/I)
+            Branch(inp=0, out=0, start=0, end=4),
+            Branch(inp=1, out=+2, start=0, end=6),
+            Branch(inp=0, out=0, start=1, end=5),
+            Branch(inp=1, out=-2, start=1, end=7),
+            Branch(inp=0, out=-2, start=2, end=4),
+            Branch(inp=1, out=0, start=2, end=6),
+            Branch(inp=0, out=+2, start=3, end=5),
+            Branch(inp=1, out=0, start=3, end=7),
 
-        # Column 2 (n-odd/Q)
-        Branch(inp=0, out=0, start=4, end=0),
-        Branch(inp=1, out=-2, start=4, end=1),
-        Branch(inp=0, out=+2, start=5, end=0),
-        Branch(inp=1, out=0, start=5, end=1),
-        Branch(inp=0, out=0, start=6, end=2),
-        Branch(inp=1, out=+2, start=6, end=3),
-        Branch(inp=0, out=-2, start=7, end=2),
-        Branch(inp=1, out=0, start=7, end=3),
+            # Column 2 (n-odd/Q)
+            Branch(inp=0, out=0, start=4, end=0),
+            Branch(inp=1, out=-2, start=4, end=1),
+            Branch(inp=0, out=+2, start=5, end=0),
+            Branch(inp=1, out=0, start=5, end=1),
+            Branch(inp=0, out=0, start=6, end=2),
+            Branch(inp=1, out=+2, start=6, end=3),
+            Branch(inp=0, out=-2, start=7, end=2),
+            Branch(inp=1, out=0, start=7, end=3),
+        ]
     ]
 )
 
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    fsm = FiniteStateMachine(trellis=SOQPSKTrellis)
+SOQPSKTrellis4x2 = Trellis(
+    branches=[
+        # Column 1 (n-even/I)
+        [
+            Branch(inp=0, out=0, start=0, end=0),
+            Branch(inp=1, out=+2, start=0, end=2),
+            Branch(inp=0, out=0, start=1, end=1),
+            Branch(inp=1, out=-2, start=1, end=3),
+            Branch(inp=0, out=-2, start=2, end=0),
+            Branch(inp=1, out=0, start=2, end=2),
+            Branch(inp=0, out=+2, start=3, end=1),
+            Branch(inp=1, out=0, start=3, end=3),
+        ],
+        # Column 2 (n-odd/Q)
+        [
+            Branch(inp=0, out=0, start=0, end=0),
+            Branch(inp=1, out=-2, start=0, end=1),
+            Branch(inp=0, out=+2, start=1, end=0),
+            Branch(inp=1, out=0, start=1, end=1),
+            Branch(inp=0, out=0, start=2, end=2),
+            Branch(inp=1, out=+2, start=2, end=3),
+            Branch(inp=0, out=-2, start=3, end=2),
+            Branch(inp=1, out=0, start=3, end=3),
+        ]
+    ]
+)

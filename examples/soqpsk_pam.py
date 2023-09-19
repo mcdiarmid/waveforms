@@ -16,8 +16,12 @@ from waveforms.cpm.soqpsk import (
 from waveforms.cpm.modulate import cpm_modulate
 from waveforms.cpm.pamapprox import rho_pulses
 from waveforms.lpf import kaiser_fir_lpf
-from waveforms.viterbi.trellis import FiniteStateMachine, SOQPSKTrellis
-from waveforms.viterbi.algorithm import viterbi_algorithm
+from waveforms.viterbi.trellis import (
+    FiniteStateMachine,
+    SOQPSKTrellis4x2,
+    SOQPSKTrellis8x1,
+)
+from waveforms.viterbi.algorithm import viterbi_algorithm, SOQPSKTrellisDetector
 
 
 # Set seeds so iterations on implementation can be compared better
@@ -162,66 +166,29 @@ if __name__ == "__main__":
         #     3. Therefore, a GNURadio style block would require history/delay of L and tracking phase state
 
         # Initialize FSM
-        fsm = FiniteStateMachine(trellis=SOQPSKTrellis)
-
-
-        # THIS WIP VARIATION ONLY DOES ONE LONG VA TRACEBACK
-        # Branch metric increment history and cumulative winning phase state
-        z_n_history = []
-        phase_idx = 0
-
-        for n in range(received_signal.size-d_max):
-            # Timing recovery (for now we live in an perfectly synchronized world)
-            # TODO implement timing and phase recovery, along with introduced imperfections
-            if (n + L*sps/2) % sps:
-                continue
-
-            # Branch increments - Iterate over hypothetical symbols
-            z_n = np.zeros(3)
-            y_arr = np.zeros((3, d_max), np.complex128)
-            for sym_idx in range(3):
-                # Independent of current state
-                y_n = np.zeros(d_max, dtype=np.complex128)
-                for k, rho_k in enumerate(rho):
-                    y_n[:rho_k.size] += received_signal[n:n+rho_k.size] * rho_k * np.conj(pseudo_symbols[k,sym_idx])
-                y_arr[sym_idx] = y_n
-
-                # Trellis/phase state dependent
-                z_ln = np.real(np.exp(-j * 2 * np.pi * (phase_idx % P) / P) * np.sum(y_n))
-                z_n[sym_idx] = z_ln
-
-            # z_ln is trellis/phase state dependent, should execute a short length viterbi algorithm to have a more accurate
-            z_n_history.append(z_n)
-            phase_idx += np.argmin(z_n*z_n) - 1  # should modulo 4 here, but can just apply it upon phase offset calc
-
-        # Viterbi algorithm with SOQPSK 8x1 state trellis, should execute on increments[n:n+2*L] per n increment
-        increments = np.array(z_n_history).T
-        recovered_bits, recovered_symbols = viterbi_algorithm(increments, fsm)
-
-        # Display cumulative detection error count
-        t = np.linspace(0, symbols.size-1, num=symbols.size)
-        recovered = recovered_symbols / 2
-        start_offset = int(label == "TG") * 3  # TODO make this a function of L and d_max
-        error_idx, = np.where(symbols[start_offset:recovered.size+start_offset] - recovered)
-        errors_ax.plot(t[error_idx], np.cumsum(np.ones(error_idx.shape)), color="k", marker="x")
-
+        fsm = FiniteStateMachine(trellis=SOQPSKTrellis8x1)
+        det = SOQPSKTrellisDetector(length=2)
 
         # THIS WIP VARIATION ATTEMPTS TO DO A VA TRACEBACK ON EACH SYMBOL
         phase_idx: int = 0  # Phase state from symbols n=(-inf,n-L)
         trace_length = 2*L if label == "TG" else 8  # What does the literature say?
-        timing_offset = -2 if label == "TG" else -4
+        timing_offset = -1 if label == "TG" else -4  # TODO Magic numbers
         correlative_state_symbols = np.zeros(trace_length, dtype=np.int8)
         correlative_state_increments = np.zeros((num_symbols, trace_length), dtype=np.float64)
         output_symbols = []
         output_bits = []
+        output_symbols2 = []
+        output_bits2 = []
 
         for n in range(received_signal.size-trace_length*sps):
             # Placeholder timing recovery, will replace with Non-data-aided method
             if (n+timing_offset) % sps:
                 continue
 
-            # Remove oldest correlative symbol and increment
+            # Remove oldest correlative symbol
             correlative_state_symbols = np.roll(correlative_state_symbols, -1)
+
+            # Increments need to be re-calculated on each loop since all increments depend on preceding phase state
             correlative_state_increments = np.roll(correlative_state_increments, -1, axis=1)
 
             # Calculate newest correlative branch metric increment for each hypothetical symbol
@@ -242,14 +209,30 @@ if __name__ == "__main__":
             output_symbols.append(correlative_state_symbols[0])
             output_bits.append(rbits[0])
 
+            # Second implementation
+            rbits2, rsyms2 = det.va_iteration(mf_outputs[:, n+sps*trace_length])
+            output_symbols2.append(rsyms2[0] / 2)
+            output_bits2.append(rbits2[0])
+
         iter_va_output_symbols = np.array(output_symbols, dtype=np.int8)
         iter_va_output_bits = np.array(output_bits, dtype=np.uint8)
         iter_va_errors, = np.where(symbols[:iter_va_output_symbols.size]-iter_va_output_symbols)
 
-        print(len(iter_va_errors), len(error_idx))
+        iter_va_output_symbols2 = np.array(output_symbols2, dtype=np.int8)
+        iter_va_output_bits2 = np.array(output_bits2, dtype=np.uint8)
+
+        # Display cumulative detection error count
+        # TODO Get rid of magic numbers
+        aligned_syms = symbols[8-det.length:] if label == "MIL" else symbols[16-det.length:]
+        min_size = min(aligned_syms.size, iter_va_output_symbols2.size)
+        t = np.linspace(0, min_size-1, num=min_size)
+        error_idx, = np.where(iter_va_output_symbols2[:min_size]-aligned_syms[:min_size])
+        errors_ax.plot(t[error_idx], np.cumsum(np.ones(error_idx.shape)), color="k", marker="x")
+
+        print(len(error_idx), len(iter_va_errors))
 
         # Plot Rho pulses used for PAM Approximation
-        for k, rho_k, fmt in zip((0, 1), rho, ("b-", "g--")):
+        for k, rho_k, fmt in zip(range(k_max), rho, ("b-", "g--")):
             rho_ax.plot(
                 np.linspace(0, (rho_k.size-1)/sps, num=rho_k.size),
                 rho_k,
