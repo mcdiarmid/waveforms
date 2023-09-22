@@ -18,6 +18,26 @@ class Branch:
 class Trellis:
     branches: List[List[Branch]]
 
+    @property
+    def input_cardinality(self) -> int:
+        return max([b.inp for col in self.branches for b in col])
+
+    @property
+    def output_cardinality(self) -> int:
+        return len(set(b.out for col in self.branches for b in col))
+
+    @property
+    def columns(self) -> int:
+        return len(self.branches)
+
+    @property
+    def branches_per_column(self) -> int:
+        return len(self.branches[0])
+
+    @property
+    def states(self) -> int:
+        return max([b.start for col in self.branches for b in col]) + 1
+
 
 def filter_branches(
     state: int,
@@ -49,9 +69,9 @@ class FiniteStateMachine:
         # TODO check trellis validity
 
         # Generate forward and reverse maps for quick access
-        self.branches_per_column = len(trellis.branches[0])
-        self.columns = len(trellis.branches)
-        self.states = max(trellis.branches[0], key=lambda b: b.end).end + 1
+        self.branches_per_column = trellis.branches_per_column
+        self.columns = trellis.columns
+        self.states = trellis.states
         self.forward_branch_mapping = [
             [
                 forward_map(st, column)
