@@ -17,7 +17,7 @@ def freq_pulse_soqpsk(
     t_norm = np.linspace(
         -tau_max,
         tau_max,
-        num=int(tau_max * sps * 2),
+        num=int(tau_max * sps * 2)+1,
         dtype=np.float64
     )
     g = (

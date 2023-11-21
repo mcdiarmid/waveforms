@@ -9,12 +9,12 @@ def pam_unit_pulse(
     phase_pulse: NDArray[np.float64],
     mod_index: float,
 ) -> NDArray[np.float64]:
-    response = np.zeros(phase_pulse.size*2+1, dtype=np.float64)
+    response = np.zeros(phase_pulse.size*2-1, dtype=np.float64)
     pih = mod_index*np.pi
     response[1:phase_pulse.size+1] = (
         np.sin(2*pih*phase_pulse) / np.sin(pih)
     )
-    response[phase_pulse.size+1:] = (
+    response[phase_pulse.size-1:] = (
         np.sin(pih -2*pih*phase_pulse) / np.sin(pih)
     )
     return response

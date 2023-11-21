@@ -124,8 +124,10 @@ if __name__ == "__main__":
 
         # Pulse Truncation Filters
         L = int(pulse_filter.size/sps)
-        truncated_freq_pulse = pulse_filter[int((L-1)*sps/2):int((L+1)*sps/2)]
-        truncated_phase_pulse = np.cumsum(normalize_cpm_filter(sps=sps, g=truncated_freq_pulse)) / sps
+        truncation = 1
+        truncated_freq_pulse = pulse_filter[int((L-truncation)*sps/2):int((L+truncation)*sps/2)+1]
+        truncated_freq_pulse = normalize_cpm_filter(sps=sps, g=truncated_freq_pulse)
+        truncated_phase_pulse = np.cumsum(truncated_freq_pulse) / sps
         mf_outputs_pt = np.zeros((3, received_signal.size), dtype=np.complex128)
         mf_outputs_pt[0, :] = np.convolve(received_signal, np.exp(-j*2*np.pi*mod_index*-2*truncated_phase_pulse), mode="same")
         mf_outputs_pt[1, :] = np.convolve(received_signal, np.exp(-j*2*np.pi*mod_index*0*truncated_phase_pulse), mode="same")
@@ -168,7 +170,7 @@ if __name__ == "__main__":
 
                 # Perform Fixed Length VA Traceback
                 sym_idx = int((n + timing_offset) / sps)
-                rbits, rsyms = det.va_iteration(mf_outputs[:, n])
+                rbits, rsyms = det.iteration(mf_outputs[:, n])
                 output_symbols.append(rsyms[0])
                 output_bits.append(rbits[0])
 
@@ -184,8 +186,9 @@ if __name__ == "__main__":
 
         # Plot Rho pulses used for PAM Approximation
         for k, rho_k, fmt in zip(range(k_max), rho, ("b-", "g--")):
+            t = np.linspace(0, (rho_k.size-1)/sps, num=rho_k.size)
             rho_ax.plot(
-                np.linspace(0, (rho_k.size-1)/sps, num=rho_k.size),
+                t,
                 rho_k,
                 fmt,
                 label=fr"SOQPSK-{label} $\rho_{k}(t)$"
