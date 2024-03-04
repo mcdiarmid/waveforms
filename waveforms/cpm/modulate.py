@@ -16,7 +16,7 @@ def phase_modulate(
 
 def frequency_modulate(
     freq_pulses: NDArray[np.float64],
-    sensitivity: float,
+    sps: int,
     initial_phase: float = 0,
 ) -> NDArray[np.float64]:
     """
@@ -29,16 +29,16 @@ def frequency_modulate(
     since there is no numpy function for "accumulate with modulo".
 
     :param freq_pulses: Frequency pulses (pulse shaped symbols)
-    :param sensitivity: 2 * pi / sps
+    :param sps: Samples per symbol
     :param initial_phase: Phase of y(t=0)
     :return: Frequency Modulated signal
     """
-    # return phase_modulate(np.cumsum(freq_pulses), sensitivity) * np.exp(j * initial_phase)
     phase_array = np.zeros(freq_pulses.shape, dtype=np.float64)
-    phase_i = initial_phase
+    sensitivity = 2 * np.pi / sps
+    revs = 0
     for i, sample in enumerate(freq_pulses):
-        phase_i = (phase_i + sensitivity * sample) % (2 * np.pi)
-        phase_array[i] = phase_i
+        revs = (revs + sample) % sps
+        phase_array[i] = revs * sensitivity + initial_phase
     return np.exp(j * phase_array)
 
 
@@ -79,7 +79,7 @@ def cpm_modulate(
     freq_pulses = np.convolve(interpolated_soft_symbols, pulse_filter, mode="same")
     modulated_signal = frequency_modulate(
         freq_pulses,
-        sensitivity=2*np.pi/sps,
+        sps=sps,
         initial_phase=np.pi/4
     )
     return normalized_time, modulated_signal
