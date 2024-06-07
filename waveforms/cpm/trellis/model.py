@@ -39,11 +39,7 @@ class Trellis:
         return max([b.start for col in self.branches for b in col]) + 1
 
 
-def filter_branches(
-    state: int,
-    branches: List[Branch],
-    attr: str = "start"
-) -> List[Branch]:
+def filter_branches(state: int, branches: List[Branch], attr: str = "start") -> List[Branch]:
     return [*filter(lambda b: getattr(b, attr) == state, branches)]
 
 
@@ -73,31 +69,17 @@ class FiniteStateMachine:
         self.columns = trellis.columns
         self.states = trellis.states
         self.forward_branch_mapping = [
-            [
-                forward_map(st, column)
-                for st in range(self.states)
-            ]
-            for column in trellis.branches
+            [forward_map(st, column) for st in range(self.states)] for column in trellis.branches
         ]
         self.reverse_branch_mapping = [
-            [
-                reverse_map(st, column)
-                for st in range(self.states)
-            ]
-            for column in trellis.branches
+            [reverse_map(st, column) for st in range(self.states)] for column in trellis.branches
         ]
         self.forward_transitions = [
-            [
-                {b.end: b for b in forward_branches(st, column)}
-                for st in range(self.states)
-            ]
+            [{b.end: b for b in forward_branches(st, column)} for st in range(self.states)]
             for column in trellis.branches
         ]
         self.reverse_transitions = [
-            [
-                {b.start: b for b in reverse_branches(st, column)}
-                for st in range(self.states)
-            ]
+            [{b.start: b for b in reverse_branches(st, column)} for st in range(self.states)]
             for column in trellis.branches
         ]
         self.symbols = sorted(set([branch.out for column in trellis.branches for branch in column]))
@@ -116,7 +98,6 @@ SOQPSKTrellis8x1 = Trellis(
             Branch(inp=1, out=0, start=2, end=6),
             Branch(inp=0, out=+2, start=3, end=5),
             Branch(inp=1, out=0, start=3, end=7),
-
             # Column 2 (n-odd/Q)
             Branch(inp=0, out=0, start=4, end=0),
             Branch(inp=1, out=-2, start=4, end=1),
@@ -154,6 +135,6 @@ SOQPSKTrellis4x2 = Trellis(
             Branch(inp=1, out=+2, start=2, end=3),
             Branch(inp=0, out=-2, start=3, end=2),
             Branch(inp=1, out=0, start=3, end=3),
-        ]
+        ],
     ]
 )

@@ -20,7 +20,7 @@ def frequency_modulate(
     initial_phase: float = 0,
 ) -> NDArray[np.float64]:
     """
-    Note: since this relies on an integral, appropriate handling of 
+    Note: since this relies on an integral, appropriate handling of
     quantization error needs to be considered for real-world implementation.
 
     E.g. GNURadio minimizes the effect of compounding quantization error
@@ -64,8 +64,8 @@ def cpm_modulate(
         mod_index = np.array(mod_index, dtype=np.float64)
 
     # Normalized time array
-    num_points = (symbols.size+1)*sps+1
-    normalized_time = np.linspace(0, symbols.size+1, num=num_points, dtype=np.float64)
+    num_points = (symbols.size + 1) * sps + 1
+    normalized_time = np.linspace(0, symbols.size + 1, num=num_points, dtype=np.float64)
 
     # Create an array of alternating mod indicies
     ith_mod_index = np.array(range(symbols.size)) % mod_index.size
@@ -77,9 +77,5 @@ def cpm_modulate(
 
     # Phase modulate signal
     freq_pulses = np.convolve(interpolated_soft_symbols, pulse_filter, mode="same")
-    modulated_signal = frequency_modulate(
-        freq_pulses,
-        sps=sps,
-        initial_phase=np.pi/4
-    )
+    modulated_signal = frequency_modulate(freq_pulses, sps=sps, initial_phase=np.pi / 4)
     return normalized_time, modulated_signal

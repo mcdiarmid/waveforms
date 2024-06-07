@@ -14,27 +14,19 @@ def freq_pulse_soqpsk(
     sps: int = 8,
 ) -> NDArray[np.float64]:
     tau_max = (T_1 + T_2) * 2
-    t_norm = np.linspace(
-        -tau_max,
-        tau_max,
-        num=int(tau_max * sps * 2)+1,
-        dtype=np.float64
-    )
+    t_norm = np.linspace(-tau_max, tau_max, num=int(tau_max * sps * 2) + 1, dtype=np.float64)
     g = (
-        np.cos(np.pi * rho * b * t_norm / 2) / 
-        (1 - np.power(rho * b * t_norm, 2)) * 
-        np.sinc(b * t_norm / 2)
+        np.cos(np.pi * rho * b * t_norm / 2)
+        / (1 - np.power(rho * b * t_norm, 2))
+        * np.sinc(b * t_norm / 2)
     )
     w = np.ones(t_norm.shape, dtype=np.float64)
     if T_2 > 0:
-        idx = np.where(
-            (np.abs(t_norm) >= 2 * T_1) & 
-            (np.abs(t_norm) <= tau_max)
-        )
+        idx = np.where((np.abs(t_norm) >= 2 * T_1) & (np.abs(t_norm) <= tau_max))
         w[idx] = (1 + np.cos(np.pi * (t_norm[idx] / 2 - T_1) / T_2)) / 2
         w[np.where(np.abs(t_norm) > tau_max)] = 0
 
-    a_scalar = sps / (np.cumsum(g*w)[-1] * 2)
+    a_scalar = sps / (np.cumsum(g * w)[-1] * 2)
     return a_scalar * g * w
 
 

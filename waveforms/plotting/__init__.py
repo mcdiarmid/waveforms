@@ -29,17 +29,17 @@ def eye_diagram(
     """
     real_ax, imag_ax = eye_ax or plt.subplots(2)[-1]
 
-    for i in range((time.size-1)//(sps*modulo)):
-        idx_start = i*sps*modulo
+    for i in range((time.size - 1) // (sps * modulo)):
+        idx_start = i * sps * modulo
         real_ax.plot(
-            (time[idx_start:idx_start+sps*modulo+1]-time[idx_start]),
-            signal.real[idx_start:idx_start+sps*modulo+1],
+            (time[idx_start : idx_start + sps * modulo + 1] - time[idx_start]),
+            signal.real[idx_start : idx_start + sps * modulo + 1],
             linewidth=0.3,
             color=color,
         )
         imag_ax.plot(
-            (time[idx_start:idx_start+sps*modulo+1]-time[idx_start]),
-            signal.imag[idx_start:idx_start+sps*modulo+1],
+            (time[idx_start : idx_start + sps * modulo + 1] - time[idx_start]),
+            signal.imag[idx_start : idx_start + sps * modulo + 1],
             linewidth=0.3,
             color=color,
         )

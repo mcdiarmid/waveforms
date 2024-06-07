@@ -20,9 +20,5 @@ def kaiser_fir_lpf(
     :return: Filter taps
     """
     nyq_rate = sps / 2
-    N, beta = kaiserord(ripple_db, width or 1/sps)
-    return firwin(
-        numtaps=N, 
-        cutoff=f_cutoff/nyq_rate,
-        window=('kaiser', beta)
-    )
+    N, beta = kaiserord(ripple_db, width or 1 / sps)
+    return firwin(numtaps=N, cutoff=f_cutoff / nyq_rate, window=("kaiser", beta))
