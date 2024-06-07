@@ -1,10 +1,13 @@
-from typing import Tuple, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy.typing import NDArray
 
 from waveforms.cpm.trellis.model import FiniteStateMachine, SOQPSKTrellis4x2
 
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 j = complex(0, 1)
 
@@ -15,23 +18,35 @@ class SOQPSKTrellisDetector:
         self.length = length
         self.fsm = FiniteStateMachine(trellis=SOQPSKTrellis4x2)
         self.state_exp_term = [+j, -1, +1, -j]
-        self.bi_history = np.zeros((self.fsm.branches_per_column, length), dtype=np.float64)
-        self.metrics = np.zeros((self.fsm.states, self.length), dtype=np.float64)
-        self.path = np.zeros((self.fsm.states, self.length), dtype=np.uint8)
+        self.bi_history = np.zeros(
+            (self.fsm.branches_per_column, length),
+            dtype=np.float64,
+        )
+        self.metrics = np.zeros(
+            (self.fsm.states, self.length),
+            dtype=np.float64,
+        )
+        self.path = np.zeros(
+            (self.fsm.states, self.length),
+            dtype=np.uint8,
+        )
 
     def iteration(
-        self, mf_outputs: NDArray[np.complex128]
-    ) -> Tuple[NDArray[np.uint8], NDArray[np.int8]]:
-        """
+        self, mf_outputs: NDArray[np.complex128],
+    ) -> tuple[NDArray[np.uint8], NDArray[np.int8]]:
+        """Performs a single iteration of the viterbi algorithm.
 
-        :param mf_outputs: One row per symbol, assuming column length already sliced correctly
-        :return: Recovered bits and recovered symbols
+        Args:
+            mf_outputs: One row per symbol, assuming column length already sliced correctly
+
+        Returns:
+            tuple[NDArray[np.uint8], NDArray[np.int8]]: Recovered bits, recovered symbols
         """
         # Latest Branch increments
-        self.bi_history[:, :]: NDArray[np.float64] = np.roll(self.bi_history, -1, axis=1)
+        self.bi_history[:, :] = np.roll(self.bi_history, -1, axis=1)
         self.bi_history[:, -1] = [
             np.real(
-                self.state_exp_term[branch.start] * mf_outputs[self.fsm.symbol_idx_map[branch.out]]
+                self.state_exp_term[branch.start] * mf_outputs[self.fsm.symbol_idx_map[branch.out]],
             )
             for branch in self.fsm.trellis.branches[self.i % self.fsm.columns]
         ]

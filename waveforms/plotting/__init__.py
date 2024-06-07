@@ -1,10 +1,14 @@
-from typing import Optional, Tuple
+from __future__ import annotations
 
-import numpy as np
-from numpy.typing import NDArray
+from typing import TYPE_CHECKING
+
 import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
-from matplotlib.axes import Axes
+import numpy as np
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+    from matplotlib.figure import Figure
+    from numpy.typing import NDArray
 
 
 def eye_diagram(
@@ -13,11 +17,10 @@ def eye_diagram(
     sps: int = 8,
     modulo: int = 4,
     *,
-    color: Optional[str] = None,
-    eye_ax: Optional[Tuple[Axes, Axes]] = None,
+    color: str | None = None,
+    eye_ax: tuple[Axes, Axes] | None = None,
 ) -> Figure:
-    """
-    Plots an eye diagram of the provided signal.
+    """Plots an eye diagram of the provided signal.
 
     :param time: Array of normalized time values (t/T_b)
     :param signal: Array of modulated signal samples
@@ -53,7 +56,3 @@ def eye_diagram(
     imag_ax.set_ylabel("Amplitude")
     imag_ax.set_xlabel("Normalized Time [t/T]")
     return real_ax.figure
-
-
-def psd() -> Figure:
-    pass
