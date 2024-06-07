@@ -1,12 +1,18 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import numpy as np
-from numpy.typing import NDArray
-from scipy.signal import kaiserord, firwin
+from scipy.signal import firwin, kaiserord
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 
 def kaiser_fir_lpf(
     sps: int,
     f_cutoff: float,
-    width: float = None,
+    width: float | None = None,
     ripple_db: float = 80.0,
 ) -> NDArray[np.float64]:
     """
@@ -20,5 +26,5 @@ def kaiser_fir_lpf(
     :return: Filter taps
     """
     nyq_rate = sps / 2
-    N, beta = kaiserord(ripple_db, width or 1 / sps)
-    return firwin(numtaps=N, cutoff=f_cutoff / nyq_rate, window=("kaiser", beta))
+    numtaps, beta = kaiserord(ripple_db, width or 1 / sps)
+    return firwin(numtaps=numtaps, cutoff=f_cutoff / nyq_rate, window=("kaiser", beta))

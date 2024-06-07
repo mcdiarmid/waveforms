@@ -45,9 +45,6 @@ class PNSequence(GLFSR):
 if __name__ == "__main__":
     import numpy as np
 
-    def print_hex(arr):
-        print("".join(f"{x:02x}" for x in arr))
-
     degree = 15
     glfsr = PNSequence(degree)
     pn_bits = [glfsr.next_bit() for _ in range(2**degree - 1)]
