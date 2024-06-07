@@ -1,6 +1,5 @@
 from waveforms.glfsr.glfsr import GLFSR
 
-
 polynomials_masks = [
     0,
     0,
@@ -38,7 +37,7 @@ polynomials_masks = [
 
 
 class PNSequence(GLFSR):
-    def __init__(self, degree: int):
+    def __init__(self, degree: int) -> None:
         super().__init__(polynomials_masks[degree], (1 << degree) - 1)
 
 

@@ -1,7 +1,6 @@
 import numpy as np
 from numpy.typing import NDArray
 
-
 SOQPSK_NUMER = 1
 SOQPSK_DENOM = 2
 
