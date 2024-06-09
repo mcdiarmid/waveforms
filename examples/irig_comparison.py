@@ -1,35 +1,35 @@
-import random
 from pathlib import Path
 
-import numpy as np
-from numpy.typing import NDArray
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.ticker import MultipleLocator
+from numpy.typing import NDArray
 
-from waveforms.cpm.pcmfm import (
-    PCMFM_NUMER,
-    PCMFM_DENOM,
-    PCMFMSymbolMapper,
-    freq_pulse_pcmfm,
-)
-from waveforms.cpm.soqpsk import (
-    SOQPSK_NUMER,
-    SOQPSK_DENOM,
-    SOQPSKPrecoder,
-    freq_pulse_soqpsk_tg,
-)
+from waveforms.cpm.modulate import cpm_modulate
 from waveforms.cpm.multih import (
     MULTIH_IRIG_DENOM,
     MULTIH_IRIG_NUMER,
     MultiHSymbolMapper,
     freq_pulse_multih_irig,
 )
-from waveforms.cpm.modulate import cpm_modulate
+from waveforms.cpm.pcmfm import (
+    PCMFM_DENOM,
+    PCMFM_NUMER,
+    PCMFMSymbolMapper,
+    freq_pulse_pcmfm,
+)
+from waveforms.cpm.soqpsk import (
+    SOQPSK_DENOM,
+    SOQPSK_NUMER,
+    SOQPSKPrecoder,
+    freq_pulse_soqpsk_tg,
+)
 
+rng = np.random.Generator(np.random.PCG64())
 
 DATA_HEADER = b"\x1b\x1bHello World!"
-DATA_EXTRA = bytes([random.randint(0,0xff) for i in range(4000)])
+DATA_EXTRA = bytes(rng.integers(0, 0xFF, size=4000, endpoint=True, dtype=np.uint8))
 DATA_BUFFER = DATA_HEADER + DATA_EXTRA
 j = complex(0, 1)
 
@@ -88,46 +88,46 @@ if __name__ == "__main__":
         )
 
         pulse_length = freq_pulse.size / sps
-        padded_pulse: NDArray[np.float64] = np.concatenate((
-            np.zeros(int(pulse_pad*sps)),
-            freq_pulse,
-            np.zeros(int(pulse_pad*sps)),
-        ))
+        padded_pulse: NDArray[np.float64] = np.concatenate(
+            (
+                np.zeros(int(pulse_pad * sps)),
+                freq_pulse,
+                np.zeros(int(pulse_pad * sps)),
+            ),
+        )
         t_lim = (
-            -(pulse_length/2 + pulse_pad),
-            +(pulse_length/2 + pulse_pad)
+            -(pulse_length / 2 + pulse_pad),
+            +(pulse_length / 2 + pulse_pad),
         )
         pulse_t = np.linspace(
             *t_lim,
-            num=padded_pulse.size
+            num=padded_pulse.size,
         )
         pulse_ax.plot(
             pulse_t,
             padded_pulse,
-            linestyle='-',
+            linestyle="-",
             linewidth=2,
             color=colors[name],
-            label=rf'{name} $f(t)$',
+            label=rf"{name} $f(t)$",
         )
         pulse_ax.plot(
             pulse_t,
             np.cumsum(padded_pulse) / sps,
-            linestyle='-.',
+            linestyle="-.",
             linewidth=1,
             color=colors[name],
-            label=rf'{name} $q(t)$',
+            label=rf"{name} $q(t)$",
         )
 
         psd_ax.psd(
-            modulated_signal*np.sqrt(bpsym),
+            modulated_signal * np.sqrt(bpsym),
             NFFT=fft_size,
-            Fs=sps/bpsym,
+            Fs=sps / bpsym,
             label=name,
             color=colors[name],
-            scale_by_freq=False
+            scale_by_freq=False,
         )
-
-        # normalized_time /= 2  # SOQPSK symbols are spaced at T/2
 
     # Format pulse diagram
     pulse_ax.set_title("Phase and Frequency Pulses")
@@ -141,8 +141,8 @@ if __name__ == "__main__":
 
     # Format the PSD plot
     psd_ax.set_title("Power Spectral Density")
-    psd_ax.set_ylabel('Amplitude [dBc]')
-    psd_ax.set_xlabel('Normalized Frequency [$T_b$ = 1]')
+    psd_ax.set_ylabel("Amplitude [dBc]")
+    psd_ax.set_xlabel("Normalized Frequency [$T_b$ = 1]")
     psd_ax.set_ylim([-80, 0])
     psd_ax.yaxis.set_major_locator(MultipleLocator(10))
     psd_ax.set_xlim([-2, 2])
