@@ -20,49 +20,134 @@ class Trellis:
 
     @property
     def input_cardinality(self) -> int:
+        """Returns the input cardinality (number of unique input values).
+
+        Args:
+            None
+
+        Returns:
+            int: Input Cardinality.
+        """
         return max([b.inp for col in self.branches for b in col])
 
     @property
     def output_cardinality(self) -> int:
+        """Returns the input cardinality (number of unique output values).
+
+        Args:
+            None
+
+        Returns:
+            int: Output Cardinality.
+        """
         return len({b.out for col in self.branches for b in col})
 
     @property
     def columns(self) -> int:
+        """Returns the number of trellis layers/columns.
+
+        Args:
+            None
+
+        Returns:
+            int: Number of trellis columns.
+        """
         return len(self.branches)
 
     @property
     def branches_per_column(self) -> int:
+        """Returns the number of trellis branches per layer/column.
+
+        Args:
+            None
+
+        Returns:
+            int: Number of trellis branches per column.
+        """
         return len(self.branches[0])
 
     @property
     def states(self) -> int:
+        """Returns the number of trellis states/rows.
+
+        Args:
+            None
+
+        Returns:
+            int: Number of trellis states.
+        """
         return max([b.start for col in self.branches for b in col]) + 1
 
 
 def filter_branches(state: int, branches: list[Branch], attr: str = "start") -> list[Branch]:
+    """Filters a list of branches based on a state and matching attribute.
+
+    Args:
+        state (int): Trellis state (zero indexed)
+        branches (list[Branch]): Branches to be filtered
+        attr (str): Filtering attribute
+
+    Returns:
+        list[Branch]: Branches matching the filter condition
+    """
     return [*filter(lambda b: getattr(b, attr) == state, branches)]
 
 
 def forward_branches(state: int, branches: list[Branch]) -> list[Branch]:
+    """Filters a list of branches that start at input state.
+
+    Args:
+        state (int): Trellis state (zero indexed)
+        branches (list[Branch]): Branches to be filtered
+
+    Returns:
+        list[Branch]: Branches starting at input state
+    """
     return filter_branches(state, branches, attr="start")
 
 
 def reverse_branches(state: int, branches: list[Branch]) -> list[Branch]:
+    """Filters a list of branches that end at input state.
+
+    Args:
+        state (int): Trellis state (zero indexed)
+        branches (list[Branch]): Branches to be filtered
+
+    Returns:
+        list[Branch]: Branches ending at input state
+    """
     return filter_branches(state, branches, attr="end")
 
 
 def forward_map(state: int, branches: list[Branch]) -> dict[int, Branch]:
+    """Generates a map viable forward state transitions from specified trellis state.
+
+    Args:
+        state (int): Trellis state (zero indexed)
+        branches (list[Branch]): Branches to be filtered and mapped
+
+    Returns:
+        dict[int, Branch]: State transition map - input: branch
+    """
     return {branch.inp: branch for branch in filter_branches(state, branches, "start")}
 
 
 def reverse_map(state: int, branches: list[Branch]) -> dict[int, Branch]:
+    """Generates a map viable reverse state transitions from specified trellis state.
+
+    Args:
+        state (int): Trellis state (zero indexed)
+        branches (list[Branch]): Branches to be filtered and mapped
+
+    Returns:
+        dict[int, Branch]: State transition map - output: branch
+    """
     return {branch.out: branch for branch in filter_branches(state, branches, "end")}
 
 
 class FiniteStateMachine:
-    def __init__(self, trellis: Trellis):
+    def __init__(self, trellis: Trellis) -> None:
         self.trellis = trellis
-        # TODO: check trellis validity
 
         # Generate forward and reverse maps for quick access
         self.branches_per_column = trellis.branches_per_column

@@ -52,10 +52,7 @@ def rho_pulses(
     # Construct a_matrix, b_matrix, c_array matricies
     length = int(pulse_filter.size / sps)
     a_matrix = np.array(
-        [
-            [x + c * (r > 0) for x in range(length) for c in range(2)]
-            for r in range(2 * length + 1)
-        ],
+        [[x + c * (r > 0) for x in range(length) for c in range(2)] for r in range(2 * length + 1)],
         dtype=np.uint8,
     )
     b_matrix = np.linspace(0, length, num=length + 1, dtype=np.uint8)
@@ -67,17 +64,19 @@ def rho_pulses(
     for k in range(k_max):
         time_shifted_u = np.array(
             [
-                np.concatenate((
-                    np.zeros(a_matrix[b_matrix[k], col] * sps),
-                    u,
-                    np.zeros((length - a_matrix[b_matrix[k], col]) * sps),
-                ))
+                np.concatenate(
+                    (
+                        np.zeros(a_matrix[b_matrix[k], col] * sps),
+                        u,
+                        np.zeros((length - a_matrix[b_matrix[k], col]) * sps),
+                    ),
+                )
                 for col in range(2 * length)
             ],
             dtype=np.float64,
         )
-        rho_k: NDArray[np.float64] = (
-            c_array[k] * reduce(np.multiply, time_shifted_u)
-        )[a_matrix[k, -1] * sps : -length * sps]
+        rho_k: NDArray[np.float64] = (c_array[k] * reduce(np.multiply, time_shifted_u))[
+            a_matrix[k, -1] * sps : -length * sps
+        ]
         rho.append(rho_k)
     return rho

@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 
-def eye_diagram(
+def eye_diagram(  # noqa: PLR0913
     time: NDArray[np.float64],
     signal: NDArray[np.float64],
     sps: int = 8,
@@ -22,13 +22,16 @@ def eye_diagram(
 ) -> Figure:
     """Plots an eye diagram of the provided signal.
 
-    :param time: Array of normalized time values (t/T_b)
-    :param signal: Array of modulated signal samples
-    :param sps: Samples per symbol
-    :param modulo: Eye diagram t_max
-    :param color: Color of the eye diagram
-    :param figure: Figure for overlaying multiple eye diagrams
-    :return: Plotted figure
+    Args:
+        time: Array of normalized time values (t/T_b)
+        signal: Array of modulated signal samples
+        sps: Samples per symbol
+        modulo: Eye diagram t_max
+        color: Color of the eye diagram
+        eye_ax: Axes if a new figure is not desired
+
+    Returns:
+        Plotted figure
     """
     real_ax, imag_ax = eye_ax or plt.subplots(2)[-1]
 

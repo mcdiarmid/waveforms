@@ -32,7 +32,8 @@ class SOQPSKTrellisDetector:
         )
 
     def iteration(
-        self, mf_outputs: NDArray[np.complex128],
+        self,
+        mf_outputs: NDArray[np.complex128],
     ) -> tuple[NDArray[np.uint8], NDArray[np.int8]]:
         """Performs a single iteration of the viterbi algorithm.
 

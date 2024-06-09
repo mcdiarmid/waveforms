@@ -1,7 +1,7 @@
-from numpy.typing import NDArray
 import numpy as np
+from numpy.typing import NDArray
 
-from waveforms.cpm.trellis.model import Trellis, SOQPSKTrellis4x2, forward_map
+from waveforms.cpm.trellis.model import Trellis, forward_map
 
 
 class TrellisEncoder:
@@ -15,11 +15,19 @@ class TrellisEncoder:
         ]
 
     def encode(self, bits: NDArray[np.uint8]) -> NDArray[np.int8]:
-        """
-        This assumes inputs
+        """Encodes a sequence of input bits to ternary symbols.
+
+        This assumes inputs are either 0 or 1.
+
+        Args:
+            bits (NDArray[np.uint8]): Input bit sequence
+
+        Returns:
+            NDArray[np.int8]: Ternary symbols
         """
         if bits.size % self.input_cardinality:
-            raise ValueError(f"Input length must be a multiple of FSM cardinality.")
+            msg = "Input length must be a multiple of FSM cardinality."
+            raise ValueError(msg)
 
         output = np.zeros(bits.size // self.input_cardinality, dtype=np.int8)
         for n in range(bits.size // self.input_cardinality):
@@ -28,7 +36,7 @@ class TrellisEncoder:
                 [
                     bits[idx + x] << (self.input_cardinality - x - 1)
                     for x in range(self.input_cardinality)
-                ]
+                ],
             )
             branch = self.forward_branch_mapping[self.i % self.trellis.columns][self.state][
                 inp
@@ -40,4 +48,12 @@ class TrellisEncoder:
         return output
 
     def __call__(self, bits: NDArray[np.uint8]) -> NDArray[np.int8]:
+        """Invokes the encode method when the instance is called.
+
+        Args:
+            bits (NDArray[np.uint8]): Input bit sequence
+
+        Returns:
+            NDArray[np.int8]: Ternary symbols
+        """
         return self.encode(bits)
