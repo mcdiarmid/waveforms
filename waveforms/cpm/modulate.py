@@ -1,7 +1,11 @@
-from typing import Union, Tuple
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy.typing import NDArray
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 
 j = complex(0, 1)
@@ -11,6 +15,15 @@ def phase_modulate(
     phase: NDArray[np.float64],
     sensitivity: float,
 ) -> NDArray[np.float64]:
+    """Phase modulates an incoming phase signal.
+
+    Args:
+        phase (NDArray[np.float64]): Phase signal
+        sensitivity (float): Modulation sensitivity
+
+    Returns:
+        NDArray[np.float64]: Phase modulated signal.
+    """
     return np.exp(j * sensitivity * phase)
 
 
@@ -19,8 +32,9 @@ def frequency_modulate(
     sps: int,
     initial_phase: float = 0,
 ) -> NDArray[np.float64]:
-    """
-    Note: since this relies on an integral, appropriate handling of 
+    """Frequency modulates an incoming sequence of frequency pulses.
+
+    Note: since this relies on an integral, appropriate handling of
     quantization error needs to be considered for real-world implementation.
 
     E.g. GNURadio minimizes the effect of compounding quantization error
@@ -44,18 +58,20 @@ def frequency_modulate(
 
 def cpm_modulate(
     symbols: NDArray[np.int8],
-    mod_index: Union[float, NDArray[np.float64]],
+    mod_index: float | NDArray[np.float64],
     pulse_filter: NDArray[np.float64],
     sps: int = 8,
-) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
-    """
-    Generic CPM Modulation
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Generic CPM Modulation.
 
-    :param symbols: Array of symbols (already mapped from bits)
-    :param mod_index: Modulation index, or sequence of modulation indicies
-    :param pulse_filter: Pulse shaping filter (must match sps)
-    :param sps: Samples per symbol [default=8]
-    :return: CPM signal
+    Args:
+        symbols: Array of symbols (already mapped from bits)
+        mod_index: Modulation index, or sequence of modulation indicies
+        pulse_filter: Pulse shaping filter (must match sps)
+        sps: Samples per symbol [default=8]
+
+    Returns:
+        CPM signal
     """
     # Type conversions
     if isinstance(mod_index, float):
@@ -64,8 +80,8 @@ def cpm_modulate(
         mod_index = np.array(mod_index, dtype=np.float64)
 
     # Normalized time array
-    num_points = (symbols.size+1)*sps+1
-    normalized_time = np.linspace(0, symbols.size+1, num=num_points, dtype=np.float64)
+    num_points = (symbols.size + 1) * sps + 1
+    normalized_time = np.linspace(0, symbols.size + 1, num=num_points, dtype=np.float64)
 
     # Create an array of alternating mod indicies
     ith_mod_index = np.array(range(symbols.size)) % mod_index.size
@@ -77,9 +93,5 @@ def cpm_modulate(
 
     # Phase modulate signal
     freq_pulses = np.convolve(interpolated_soft_symbols, pulse_filter, mode="same")
-    modulated_signal = frequency_modulate(
-        freq_pulses,
-        sps=sps,
-        initial_phase=np.pi/4
-    )
+    modulated_signal = frequency_modulate(freq_pulses, sps=sps, initial_phase=np.pi / 4)
     return normalized_time, modulated_signal

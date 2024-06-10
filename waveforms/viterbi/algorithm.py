@@ -1,12 +1,15 @@
-from typing import Tuple, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy.typing import NDArray
 
 from waveforms.cpm.trellis.model import FiniteStateMachine, SOQPSKTrellis4x2
 
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
-j = complex(0,1)
+j = complex(0, 1)
 
 
 class SOQPSKTrellisDetector:
@@ -15,27 +18,38 @@ class SOQPSKTrellisDetector:
         self.length = length
         self.fsm = FiniteStateMachine(trellis=SOQPSKTrellis4x2)
         self.state_exp_term = [+j, -1, +1, -j]
-        self.bi_history = np.zeros((self.fsm.branches_per_column, length), dtype=np.float64)
-        self.metrics = np.zeros((self.fsm.states, self.length), dtype=np.float64)
-        self.path = np.zeros((self.fsm.states, self.length), dtype=np.uint8)
+        self.bi_history = np.zeros(
+            (self.fsm.branches_per_column, length),
+            dtype=np.float64,
+        )
+        self.metrics = np.zeros(
+            (self.fsm.states, self.length),
+            dtype=np.float64,
+        )
+        self.path = np.zeros(
+            (self.fsm.states, self.length),
+            dtype=np.uint8,
+        )
 
     def iteration(
         self,
-        mf_outputs: NDArray[np.complex128]
-    ) -> Tuple[NDArray[np.uint8], NDArray[np.int8]]:
-        """
+        mf_outputs: NDArray[np.complex128],
+    ) -> tuple[NDArray[np.uint8], NDArray[np.int8]]:
+        """Performs a single iteration of the viterbi algorithm.
 
-        :param mf_outputs: One row per symbol, assuming column length already sliced correctly
-        :return: Recovered bits and recovered symbols
+        Args:
+            mf_outputs: One row per symbol, assuming column length already sliced correctly
+
+        Returns:
+            tuple[NDArray[np.uint8], NDArray[np.int8]]: Recovered bits, recovered symbols
         """
         # Latest Branch increments
-        self.bi_history[:, :]: NDArray[np.float64] = np.roll(self.bi_history, -1, axis=1)
+        self.bi_history[:, :] = np.roll(self.bi_history, -1, axis=1)
         self.bi_history[:, -1] = [
             np.real(
-                self.state_exp_term[branch.start] *
-                mf_outputs[self.fsm.symbol_idx_map[branch.out]]
+                self.state_exp_term[branch.start] * mf_outputs[self.fsm.symbol_idx_map[branch.out]],
             )
-            for branch in self.fsm.trellis.branches[self.i%self.fsm.columns]
+            for branch in self.fsm.trellis.branches[self.i % self.fsm.columns]
         ]
         n_transitions = self.length
         self.metrics[:, -1] = self.metrics[:, 0] - self.metrics[:, 0].min()
@@ -44,7 +58,7 @@ class SOQPSKTrellisDetector:
 
         for j in range(n_transitions):
             # Iterating branches that lead to the end state st
-            branches = self.fsm.trellis.branches[(self.i+j-1)%self.fsm.columns]
+            branches = self.fsm.trellis.branches[(self.i + j - 1) % self.fsm.columns]
             for st in range(self.fsm.states):
                 # Find most likely state state for ending state
                 min_k = 0
@@ -54,7 +68,7 @@ class SOQPSKTrellisDetector:
                     if branch.end != st:
                         continue
 
-                    mm = self.metrics[branch.start, (j-1) % n_transitions] + increment
+                    mm = self.metrics[branch.start, (j - 1) % n_transitions] + increment
                     if mm < min_m:
                         min_m = mm
                         min_k = branch.start
@@ -66,8 +80,8 @@ class SOQPSKTrellisDetector:
         recovered_symbols = np.zeros(n_transitions)
         output = np.zeros(n_transitions)
         state = np.argmin(self.metrics[:, -1])
-        for j in reversed(range(n_transitions)): 
-            column = (self.i + j-1) % self.fsm.columns
+        for j in reversed(range(n_transitions)):
+            column = (self.i + j - 1) % self.fsm.columns
             branch = self.fsm.reverse_transitions[column][state][self.path[state, j]]
             output[j] = branch.inp
             recovered_symbols[j] = branch.out

@@ -1,25 +1,25 @@
-import random
 from pathlib import Path
 
-import numpy as np
-from numpy.typing import NDArray
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.ticker import MultipleLocator
+from numpy.typing import NDArray
 
+from waveforms.cpm.modulate import cpm_modulate
 from waveforms.cpm.soqpsk import (
     SOQPSKPrecoder,
     freq_pulse_soqpsk_a,
     freq_pulse_soqpsk_b,
-    freq_pulse_soqpsk_tg,
     freq_pulse_soqpsk_mil,
+    freq_pulse_soqpsk_tg,
 )
-from waveforms.cpm.modulate import cpm_modulate
 from waveforms.plotting import eye_diagram
 
+rng = np.random.Generator(np.random.PCG64())
 
 DATA_HEADER = b"\x1b\x1bHello World!"
-DATA_EXTRA = bytes([random.randint(0,0xff) for i in range(250)])
+DATA_EXTRA = bytes(rng.integers(0, 0xFF, size=4000, endpoint=True, dtype=np.uint8))
 DATA_BUFFER = DATA_HEADER + DATA_EXTRA
 j = complex(0, 1)
 
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     # Constants
     sps = 8
     fft_size = 2**9
-    mod_index = 1/2
+    mod_index = 1 / 2
     pulse_pad = 0.5
 
     # Bits of information to transmit
@@ -47,10 +47,10 @@ if __name__ == "__main__":
 
     # Simulate the following SOQPSK Waveforms
     pulses_colors_labels = (
-        (freq_pulse_soqpsk_b(sps=sps), 'lightgrey', 'B'),
-        (freq_pulse_soqpsk_tg(sps=sps), 'royalblue', 'TG'),
-        (freq_pulse_soqpsk_a(sps=sps), 'darkorange', 'A'),
-        (freq_pulse_soqpsk_mil(sps=sps), 'crimson', 'MIL'),
+        (freq_pulse_soqpsk_b(sps=sps), "lightgrey", "B"),
+        (freq_pulse_soqpsk_tg(sps=sps), "royalblue", "TG"),
+        (freq_pulse_soqpsk_a(sps=sps), "darkorange", "A"),
+        (freq_pulse_soqpsk_mil(sps=sps), "crimson", "MIL"),
     )
     for pulse_filter, color, label in pulses_colors_labels:
         # Modulate the input symbols
@@ -67,7 +67,7 @@ if __name__ == "__main__":
             sps=sps,
             modulo=4,
             eye_ax=(eye_real_ax, eye_imag_ax),
-            color=color
+            color=color,
         )
         psd_ax.psd(
             modulated_signal,
@@ -80,40 +80,42 @@ if __name__ == "__main__":
         # Plot frequency and pulses
         pulse_length = pulse_filter.size / sps
         if label == "MIL":
-            padded_pulse: NDArray[np.float64] = np.concatenate((
-                np.zeros(int(pulse_pad*sps)),
-                pulse_filter,
-                np.zeros(int(pulse_pad*sps)),
-            ))
+            padded_pulse: NDArray[np.float64] = np.concatenate(
+                (
+                    np.zeros(int(pulse_pad * sps)),
+                    pulse_filter,
+                    np.zeros(int(pulse_pad * sps)),
+                ),
+            )
             t_lim = (
-                -(pulse_length/2 + pulse_pad),
-                +(pulse_length/2 + pulse_pad)
+                -(pulse_length / 2 + pulse_pad),
+                +(pulse_length / 2 + pulse_pad),
             )
         else:
             padded_pulse = pulse_filter
             t_lim = (
-                -(pulse_length/2),
-                +(pulse_length/2)
+                -(pulse_length / 2),
+                +(pulse_length / 2),
             )
         pulse_t = np.linspace(
             *t_lim,
-            num=padded_pulse.size
+            num=padded_pulse.size,
         )
         pulse_ax.plot(
             pulse_t,
             padded_pulse,
-            linestyle='-',
+            linestyle="-",
             linewidth=2,
             color=color,
-            label=rf'{label} $f(t)$',
+            label=rf"{label} $f(t)$",
         )
         pulse_ax.plot(
             pulse_t,
             np.cumsum(padded_pulse) / sps,
-            linestyle='-.',
+            linestyle="-.",
             linewidth=1,
             color=color,
-            label=rf'{label} $q(t)$',
+            label=rf"{label} $q(t)$",
         )
 
     # Format graphs before showing them
@@ -132,8 +134,8 @@ if __name__ == "__main__":
 
     # Format the PSD plot
     psd_ax.set_title("Power Spectral Density")
-    psd_ax.set_ylabel('Amplitude [dBc]')
-    psd_ax.set_xlabel('Frequency [bit rates]')
+    psd_ax.set_ylabel("Amplitude [dBc]")
+    psd_ax.set_xlabel("Frequency [bit rates]")
     psd_ax.set_ylim([-100, 20])
     psd_ax.yaxis.set_major_locator(MultipleLocator(10))
     psd_ax.set_xlim([-2.5, 2.5])

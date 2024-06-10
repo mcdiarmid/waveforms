@@ -26,9 +26,39 @@ version = "0.1.0"
 
 [project.optional-dependencies]
 dev = [
-    "pylint",
+    "ruff",
     "black",
+    "pytest",
 ]
 
 [tool.setuptools.packages.find]
 include = ["waveforms*"]
+
+[tool.black]
+line-length = 100
+
+[tool.ruff]
+line-length = 100
+indent-width = 4
+output-format = "concise"
+show-fixes = true
+
+[tool.ruff.lint]
+select = [  # See https://docs.astral.sh/ruff/rules/
+    "ALL"
+]
+ignore = [
+    "D100", "D101", "D107", "ANN101"
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["E402", "F403", "F401", "D104"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+

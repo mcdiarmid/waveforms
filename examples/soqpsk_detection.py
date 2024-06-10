@@ -1,36 +1,39 @@
-import random
+import logging
 from pathlib import Path
 
-import numpy as np
-from numpy.typing import NDArray
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.ticker import MultipleLocator
+from numpy.typing import NDArray
 
-from waveforms.cpm.soqpsk import (
-    freq_pulse_soqpsk_tg,
-    freq_pulse_soqpsk_mil,
-)
-from waveforms.cpm.modulate import cpm_modulate
 from waveforms.cpm.helpers import normalize_cpm_filter
+from waveforms.cpm.modulate import cpm_modulate
 from waveforms.cpm.pamapprox import rho_pulses
+from waveforms.cpm.soqpsk import (
+    freq_pulse_soqpsk_mil,
+    freq_pulse_soqpsk_tg,
+)
+from waveforms.cpm.trellis.encoder import TrellisEncoder
 from waveforms.cpm.trellis.model import (
     SOQPSKTrellis4x2,
 )
-from waveforms.cpm.trellis.encoder import TrellisEncoder
 from waveforms.viterbi.algorithm import SOQPSKTrellisDetector
 
-
 # Set seeds so iterations on implementation can be compared better
-random.seed(1)
-np.random.seed(1)
+rng = np.random.Generator(np.random.PCG64(seed=1))
+
 DATA_HEADER = b"\x00\x1b\x1b\x00Hello World!"
-DATA_EXTRA = bytes([random.randint(0,0xff) for _ in range(10000)])
+DATA_EXTRA = bytes(rng.integers(0, 0xFF, size=4000, endpoint=True, dtype=np.uint8))
 DATA_BUFFER = DATA_HEADER + DATA_EXTRA
 j = complex(0, 1)
 
 
+_logger = logging.getLogger(__name__)
+
+
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     # Constants
     sps = 20
     fft_size = 2**9
@@ -50,15 +53,18 @@ if __name__ == "__main__":
         ax.grid(which="both", linestyle=":")
 
     # Generate pseudo-symbols
-    pseudo_symbols = np.array([
-        [-j, 1, j],
-        [np.sqrt(2)/2*(1-j), np.sqrt(2)/2, np.sqrt(2)/2*(1+j)],
-    ], dtype=np.complex128)
+    pseudo_symbols = np.array(
+        [
+            [-j, 1, j],
+            [np.sqrt(2) / 2 * (1 - j), np.sqrt(2) / 2, np.sqrt(2) / 2 * (1 + j)],
+        ],
+        dtype=np.complex128,
+    )
 
     # Simulate the following SOQPSK Waveforms
     pulses_colors_labels = (
-        (freq_pulse_soqpsk_mil(sps=sps), 'MIL', 1/P),
-        (freq_pulse_soqpsk_tg(sps=sps), 'TG', 1/P),
+        (freq_pulse_soqpsk_mil(sps=sps), "MIL", 1 / P),
+        (freq_pulse_soqpsk_tg(sps=sps), "TG", 1 / P),
     )
     for i, (pulse_filter, label, mod_index) in enumerate(pulses_colors_labels):
         # Assign axes
@@ -74,12 +80,16 @@ if __name__ == "__main__":
             pulse_filter=pulse_filter,
             sps=sps,
         )
-        noise = np.random.normal(
-            loc=0,
-            scale=1.25*np.sqrt(2)/2,
-            size=(modulated_signal.size, 2)
-        ).view(np.complex128).flatten()
-        modulated_signal *= np.exp(-j*1*np.pi/4)
+        noise = (
+            rng.normal(
+                loc=0,
+                scale=1.25 * np.sqrt(2) / 2,
+                size=(modulated_signal.size, 2),
+            )
+            .view(np.complex128)
+            .flatten()
+        )
+        modulated_signal *= np.exp(-j * 1 * np.pi / 4)
         freq_pulses = np.angle(modulated_signal[1:] * modulated_signal.conj()[:-1]) * sps / np.pi
 
         # Received signal
@@ -93,9 +103,22 @@ if __name__ == "__main__":
         iq_ax.plot(normalized_time, unfiltered_signal.imag, "r-", alpha=0.4, label=r"$Im[s(t)+N]$")
 
         pulse_ax = iq_ax.twinx()
-        pulse_ax.stem(normalized_time[::sps][1:-1], symbols/2, markerfmt="ko", linefmt="k-", basefmt=" ", label="Symbol")
-        pulse_ax.plot(normalized_time[:-1], freq_pulses, "k-", alpha=0.4, label="Frequency Pulses")
-        pulse_ax.set_ylim(-np.pi/2, np.pi/2)
+        pulse_ax.stem(
+            normalized_time[::sps][1:-1],
+            symbols / 2,
+            markerfmt="ko",
+            linefmt="k-",
+            basefmt=" ",
+            label="Symbol",
+        )
+        pulse_ax.plot(
+            normalized_time[:-1],
+            freq_pulses,
+            "k-",
+            alpha=0.4,
+            label="Frequency Pulses",
+        )
+        pulse_ax.set_ylim(-np.pi / 2, np.pi / 2)
 
         # Display transmitted and received signal PSD to illustrate SNR
         pxx_tx, freqs = psd_ax.psd(
@@ -114,24 +137,40 @@ if __name__ == "__main__":
         )
 
         # Spectrum Analyzer style Eb/N0 measurement
-        marker1 = 10 * np.log10(pxx_specan[fft_size//2])
+        marker1 = 10 * np.log10(pxx_specan[fft_size // 2])
         marker2 = 10 * np.log10(pxx_specan[-1])
-        rbw = sps/fft_size
+        rbw = sps / fft_size
+
+        # Spec-an method of inferring Eb/N0
         c0n0 = marker1 - 10 * np.log10(rbw)
         n0 = marker2 - 10 * np.log10(rbw)
-        c0 = 10 * np.log10(np.power(10, c0n0/10) - np.power(10, n0/10))
-        ebn0 = c0 - 2.95 - n0 
+        c0 = 10 * np.log10(np.power(10, c0n0 / 10) - np.power(10, n0 / 10))
+        ebn0 = c0 - 2.95 - n0  # This 2.95 is a ratio of peak C0 to average C0 for SOQPSK.
 
         # Pulse Truncation Filters
-        L = int(pulse_filter.size/sps)
+        L = int(pulse_filter.size / sps)
         truncation = 1
-        truncated_freq_pulse = pulse_filter[int((L-truncation)*sps/2):int((L+truncation)*sps/2)+1]
+        truncated_freq_pulse = pulse_filter[
+            int((L - truncation) * sps / 2) : int((L + truncation) * sps / 2) + 1
+        ]
         truncated_freq_pulse = normalize_cpm_filter(sps=sps, g=truncated_freq_pulse)
         truncated_phase_pulse = np.cumsum(truncated_freq_pulse) / sps
         mf_outputs_pt = np.zeros((3, received_signal.size), dtype=np.complex128)
-        mf_outputs_pt[0, :] = np.convolve(received_signal, np.exp(-j*2*np.pi*mod_index*-2*truncated_phase_pulse), mode="same")
-        mf_outputs_pt[1, :] = np.convolve(received_signal, np.exp(-j*2*np.pi*mod_index*0*truncated_phase_pulse), mode="same")
-        mf_outputs_pt[2, :] = np.convolve(received_signal, np.exp(-j*2*np.pi*mod_index*+2*truncated_phase_pulse), mode="same")
+        mf_outputs_pt[0, :] = np.convolve(
+            received_signal,
+            np.exp(-j * 2 * np.pi * mod_index * -2 * truncated_phase_pulse),
+            mode="same",
+        )
+        mf_outputs_pt[1, :] = np.convolve(
+            received_signal,
+            np.exp(-j * 2 * np.pi * mod_index * 0 * truncated_phase_pulse),
+            mode="same",
+        )
+        mf_outputs_pt[2, :] = np.convolve(
+            received_signal,
+            np.exp(-j * 2 * np.pi * mod_index * +2 * truncated_phase_pulse),
+            mode="same",
+        )
 
         # PAM De-composition rho pulses/matched filters
         rho = rho_pulses(pulse_filter, mod_index, sps, k_max=2)
@@ -143,11 +182,12 @@ if __name__ == "__main__":
         for sym_idx in range(num_symbols):
             for k in range(k_max):
                 # Zero-pad all to length d_max for alignment
-                rk = np.concatenate((rho[k], np.zeros(d_max-rho[k].size)))
-                mf_outputs_pam[sym_idx, :] += (
-                    np.convolve(received_signal, rk, mode="same") *
-                    np.conj(pseudo_symbols[k, sym_idx])
-                )
+                rk = np.concatenate((rho[k], np.zeros(d_max - rho[k].size)))
+                mf_outputs_pam[sym_idx, :] += np.convolve(
+                    received_signal,
+                    rk,
+                    mode="same",
+                ) * np.conj(pseudo_symbols[k, sym_idx])
 
         # Initialize FSM
         # WIP - ATTEMPTS TO DO A VA TRACEBACK ON EACH SYMBOL
@@ -157,15 +197,15 @@ if __name__ == "__main__":
             output_bits = []
             delay = 0
 
-            # TODO Magic numbers.  Ideally this gets solved with timing recovery though
+            # Should replace magic numbers.  Ideally this gets solved with timing recovery.
             if detector_type == "PT":
                 timing_offset = 0 if label == "TG" else -2
             else:
                 timing_offset = -2 if label == "TG" else -4
 
-            for n in range(received_signal.size-det.length*sps):
+            for n in range(received_signal.size - det.length * sps):
                 # Placeholder timing recovery, will replace with Non-data-aided method
-                if (n+timing_offset) % sps:
+                if (n + timing_offset) % sps:
                     continue
 
                 # Perform Fixed Length VA Traceback
@@ -175,26 +215,36 @@ if __name__ == "__main__":
                 output_bits.append(rbits[0])
 
             # Calculate number of errors, and visualize
-            iter_va_output_symbols = np.array(output_symbols[det.length:], dtype=np.int8)
+            iter_va_output_symbols = np.array(output_symbols[det.length :], dtype=np.int8)
             iter_va_output_bits = np.array(output_bits, dtype=np.uint8)
             aligned_symbols = symbols[delay:]
             min_size = min(aligned_symbols.size, iter_va_output_symbols.size)
-            t = np.linspace(0, min_size-1, num=min_size)
-            error_idx, = np.where(iter_va_output_symbols[:min_size]-aligned_symbols[:min_size])
-            print(f"SOQPSK-{label} {detector_type} EbN0 = {ebn0:.2f} dB, SER = {len(error_idx)/min_size:.3E}")
-            errors_ax.plot(t[error_idx], np.cumsum(np.ones(error_idx.shape)), marker="x", label=detector_type)
+            t = np.linspace(0, min_size - 1, num=min_size)
+            (error_idx,) = np.where(iter_va_output_symbols[:min_size] - aligned_symbols[:min_size])
+            log_msg = (
+                f"SOQPSK-{label} {detector_type}: "
+                f"EbN0 = {ebn0:.2f} dB, "
+                f"SER = {len(error_idx)/min_size:.3E}"
+            )
+            _logger.info(log_msg)
+            errors_ax.plot(
+                t[error_idx],
+                np.cumsum(np.ones(error_idx.shape)),
+                marker="x",
+                label=detector_type,
+            )
 
         # Plot Rho pulses used for PAM Approximation
         for k, rho_k, fmt in zip(range(k_max), rho, ("b-", "g--")):
-            t = np.linspace(0, (rho_k.size-1)/sps, num=rho_k.size)
+            t = np.linspace(0, (rho_k.size - 1) / sps, num=rho_k.size)
             rho_ax.plot(
                 t,
                 rho_k,
                 fmt,
-                label=fr"SOQPSK-{label} $\rho_{k}(t)$"
+                label=rf"SOQPSK-{label} $\rho_{k}(t)$",
             )
 
-        rho_ax.set_xlim(0, (max(rho, key=np.size).size-1)/sps)
+        rho_ax.set_xlim(0, (max(rho, key=np.size).size - 1) / sps)
 
     for ax in iq_axes[0, :]:
         ax: Axes
@@ -205,8 +255,8 @@ if __name__ == "__main__":
 
     for psd_ax in iq_axes[1, :]:
         psd_ax.set_title("Power Spectral Density")
-        psd_ax.set_ylabel('Amplitude [dBc]')
-        psd_ax.set_xlabel('Normalized Frequency [$T_b$ = 1]')
+        psd_ax.set_ylabel("Amplitude [dBc]")
+        psd_ax.set_xlabel("Normalized Frequency [$T_b$ = 1]")
         psd_ax.set_ylim([-60, 0])
         psd_ax.yaxis.set_major_locator(MultipleLocator(10))
         psd_ax.set_xlim([-2, 2])
@@ -223,7 +273,7 @@ if __name__ == "__main__":
         ax.set_ylabel("Cumulative Symbol Errors")
         ax.set_xlabel("Symbol Time [nT]")
         ax.set_ylim(0, None)
-        ax.set_xlim(0, symbols.size-1)
+        ax.set_xlim(0, symbols.size - 1)
         ax.legend(loc="upper left", fontsize=8, ncol=1)
 
     fig_eye.tight_layout()

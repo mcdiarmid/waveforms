@@ -1,24 +1,24 @@
-import random
 from pathlib import Path
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.ticker import MultipleLocator
 from scipy.signal import besselap, impulse
 
+from waveforms.cpm.helpers import normalize_cpm_filter
+from waveforms.cpm.modulate import cpm_modulate
 from waveforms.cpm.pcmfm import (
-    PCMFM_NUMER,
     PCMFM_DENOM,
+    PCMFM_NUMER,
     PCMFMSymbolMapper,
     freq_pulse_pcmfm,
 )
-from waveforms.cpm.helpers import normalize_cpm_filter
-from waveforms.cpm.modulate import cpm_modulate
 
+rng = np.random.Generator(np.random.PCG64())
 
 DATA_HEADER = b"\x1b\x1bHello World!"
-DATA_EXTRA = bytes([random.randint(0,0xff) for i in range(2000)])
+DATA_EXTRA = bytes(rng.integers(0, 0xFF, size=4000, endpoint=True, dtype=np.uint8))
 DATA_BUFFER = DATA_HEADER + DATA_EXTRA
 j = complex(0, 1)
 
@@ -27,7 +27,7 @@ if __name__ == "__main__":
     sps = 20
     fft_size = 2**10
     length = 3
-    tau = np.linspace(0, length, num=length*sps)
+    tau = np.linspace(0, length, num=length * sps)
     bit_array = np.unpackbits(np.frombuffer(DATA_BUFFER, dtype=np.uint8))
 
     irig_waveforms = [
@@ -47,15 +47,14 @@ if __name__ == "__main__":
     pulse_ax: Axes = axes[0]
     psd_ax: Axes = axes[1]
 
-
     for order, ls, lw in zip(
         [4, 5, 6, 7, 8],
-        ['-', '--', '-', '--', '-.'],
-        [3, 3, 2, 2, 2]
+        ["-", "--", "-", "--", "-."],
+        [3, 3, 2, 2, 2],
     ):
         t, y = impulse(
             besselap(order, norm="mag"),
-            T=np.linspace(0, length*2/0.7, num=(length-1)*sps+1)
+            T=np.linspace(0, length * 2 / 0.7, num=(length - 1) * sps + 1),
         )
         freq_pulse = normalize_cpm_filter(sps, np.convolve(y, np.ones(sps)))
 
@@ -68,7 +67,7 @@ if __name__ == "__main__":
         pulse_ax.plot(
             tau,
             freq_pulse,
-            color='k',
+            color="k",
             linestyle=ls,
             linewidth=lw,
             label=f"{order}-th order",
@@ -85,13 +84,13 @@ if __name__ == "__main__":
             symbols=symbols,
             mod_index=mod_index,
             pulse_filter=normalize_cpm_filter(sps, np.ones(sps)),
-            sps=sps
+            sps=sps,
         )[1],
         NFFT=fft_size,
         Fs=sps,
-        label=f"No Bessel Filter",
-        color='k',
-        linestyle=':'
+        label="No Bessel Filter",
+        color="k",
+        linestyle=":",
     )
     # Format frequency pulse plot
     pulse_ax.set_title("Impulse Response of $N$-th Order NRZ-Bessel Filter")
@@ -104,8 +103,8 @@ if __name__ == "__main__":
 
     # Format the PSD plot
     psd_ax.set_title("Power Spectral Density")
-    psd_ax.set_ylabel('Amplitude [dBc]')
-    psd_ax.set_xlabel('Normalized Frequency [$T_b$ = 1]')
+    psd_ax.set_ylabel("Amplitude [dBc]")
+    psd_ax.set_xlabel("Normalized Frequency [$T_b$ = 1]")
     psd_ax.set_ylim([-60, 20])
     psd_ax.yaxis.set_major_locator(MultipleLocator(10))
     psd_ax.set_xlim([-2, 2])
