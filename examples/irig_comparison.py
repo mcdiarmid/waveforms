@@ -25,12 +25,13 @@ from waveforms.cpm.soqpsk import (
     SOQPSKPrecoder,
     freq_pulse_soqpsk_tg,
 )
+from waveforms.glfsr import PNSequence
 
 rng = np.random.Generator(np.random.PCG64())
 
-DATA_HEADER = b"\x1b\x1bHello World!"
-DATA_EXTRA = bytes(rng.integers(0, 0xFF, size=4000, endpoint=True, dtype=np.uint8))
-DATA_BUFFER = DATA_HEADER + DATA_EXTRA
+PN_DEGREE = 15
+DATA_GEN = PNSequence(PN_DEGREE)
+DATA_BUFFER = np.packbits([DATA_GEN.next_bit() for _ in range(2**PN_DEGREE - 1)])
 j = complex(0, 1)
 
 

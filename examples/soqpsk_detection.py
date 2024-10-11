@@ -18,14 +18,15 @@ from waveforms.cpm.trellis.encoder import TrellisEncoder
 from waveforms.cpm.trellis.model import (
     SOQPSKTrellis4x2,
 )
+from waveforms.glfsr import PNSequence
 from waveforms.viterbi.algorithm import SOQPSKTrellisDetector
 
 # Set seeds so iterations on implementation can be compared better
 rng = np.random.Generator(np.random.PCG64(seed=1))
 
-DATA_HEADER = b"\x00\x1b\x1b\x00Hello World!"
-DATA_EXTRA = bytes(rng.integers(0, 0xFF, size=4000, endpoint=True, dtype=np.uint8))
-DATA_BUFFER = DATA_HEADER + DATA_EXTRA
+PN_DEGREE = 15
+DATA_GEN = PNSequence(PN_DEGREE)
+DATA_BUFFER = np.packbits([DATA_GEN.next_bit() for _ in range(2**PN_DEGREE - 1)])
 j = complex(0, 1)
 
 
@@ -41,7 +42,7 @@ if __name__ == "__main__":
     P = 4
 
     # Bits of information to transmit
-    bit_array = np.unpackbits(np.frombuffer(DATA_BUFFER, dtype=np.uint8))
+    bit_array = np.unpackbits(DATA_BUFFER)
 
     # Convert bits to symbols
     symbol_precoder = TrellisEncoder(SOQPSKTrellis4x2)
@@ -83,7 +84,7 @@ if __name__ == "__main__":
         noise = (
             rng.normal(
                 loc=0,
-                scale=1.25 * np.sqrt(2) / 2,
+                scale=1.30 * np.sqrt(2) / 2,
                 size=(modulated_signal.size, 2),
             )
             .view(np.complex128)
@@ -248,7 +249,7 @@ if __name__ == "__main__":
 
     for ax in iq_axes[0, :]:
         ax: Axes
-        ax.set_xlim([10, 30])
+        ax.set_xlim([100, 130])
         ax.legend(loc="upper center", fontsize=8, ncols=4)
         ax.xaxis.set_major_locator(MultipleLocator(5))
         ax.xaxis.set_minor_locator(MultipleLocator(1))

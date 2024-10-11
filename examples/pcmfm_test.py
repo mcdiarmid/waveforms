@@ -14,12 +14,13 @@ from waveforms.cpm.pcmfm import (
     PCMFMSymbolMapper,
     freq_pulse_pcmfm,
 )
+from waveforms.glfsr import PNSequence
 
 rng = np.random.Generator(np.random.PCG64())
 
-DATA_HEADER = b"\x1b\x1bHello World!"
-DATA_EXTRA = bytes(rng.integers(0, 0xFF, size=4000, endpoint=True, dtype=np.uint8))
-DATA_BUFFER = DATA_HEADER + DATA_EXTRA
+PN_DEGREE = 15
+DATA_GEN = PNSequence(PN_DEGREE)
+DATA_BUFFER = np.packbits([DATA_GEN.next_bit() for _ in range(2**PN_DEGREE - 1)])
 j = complex(0, 1)
 
 
@@ -28,7 +29,7 @@ if __name__ == "__main__":
     fft_size = 2**10
     length = 3
     tau = np.linspace(0, length, num=length * sps)
-    bit_array = np.unpackbits(np.frombuffer(DATA_BUFFER, dtype=np.uint8))
+    bit_array = np.unpackbits(DATA_BUFFER)
 
     irig_waveforms = [
         (
