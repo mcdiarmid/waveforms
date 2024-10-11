@@ -70,14 +70,29 @@ def freq_pulse_soqpsk_b(sps: int = 8) -> NDArray[np.float64]:
 def freq_pulse_soqpsk_mil(sps: int = 8) -> NDArray[np.float64]:
     """Generates a SOQPSK-MIL frequency pulse.
 
+    The below implementation should work, but looks wrong.
+    Perhaps it should be generating length sps filter after all.
+
+    freq_pulse_soqpsk(b=0, t1=0.25, t2=0, rho=0, sps=sps)
+
+    On the contrary, SOQPSK-MIL looks wrong in the PAM
+    de-composition graphs when using the sps-length filter of
+    0.5 points.  If the below is indeed the correct filter
+    then clearly something is incorrect in the PAM decomposition
+    implementation...
+
+    np.ones(sps, dtype=np.float64) / 2
+
+    For now we will revert to monke as I intend to get this PAM
+    de-composition implemented correctly.
+
     Args:
         sps (int): Samples per symbol time
 
     Returns:
         NDArray[np.float64]: SOQPSK-MIL frequency pulse.
     """
-    # return freq_pulse_soqpsk(b=0, t1=0.25, t2=0, rho=0, sps=sps)
-    return np.ones(sps, dtype=np.float64) / 2
+    return freq_pulse_soqpsk(b=0, t1=0.25, t2=0, rho=0, sps=sps)
 
 
 def freq_pulse_soqpsk_tg(sps: int = 8) -> NDArray[np.float64]:

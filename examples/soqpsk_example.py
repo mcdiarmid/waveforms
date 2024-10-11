@@ -63,8 +63,8 @@ if __name__ == "__main__":
         )
         normalized_time /= 2  # SOQPSK symbols are spaced at T/2
         eye_diagram(
-            normalized_time[:normalized_time.size//4],
-            modulated_signal[:normalized_time.size//4],
+            normalized_time[: normalized_time.size // 4],
+            modulated_signal[: normalized_time.size // 4],
             sps=sps,
             modulo=4,
             eye_ax=(eye_real_ax, eye_imag_ax),
