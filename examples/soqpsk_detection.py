@@ -24,7 +24,7 @@ from waveforms.viterbi.algorithm import SOQPSKTrellisDetector
 # Set seeds so iterations on implementation can be compared better
 rng = np.random.Generator(np.random.PCG64(seed=1))
 
-PN_DEGREE = 15
+PN_DEGREE = 20
 DATA_GEN = PNSequence(PN_DEGREE)
 DATA_BUFFER = np.packbits([DATA_GEN.next_bit() for _ in range(2**PN_DEGREE - 1)])
 j = complex(0, 1)

@@ -28,7 +28,7 @@ j = complex(0, 1)
 if __name__ == "__main__":
     # Constants
     sps = 8
-    fft_size = 2**9
+    fft_size = 2**10
     mod_index = 1 / 2
     pulse_pad = 0.5
 
@@ -40,7 +40,7 @@ if __name__ == "__main__":
     symbols = symbol_precoder(bit_array)
 
     # Create plots and axes
-    fig_eye, eye_const_axes = plt.subplots(2, 2, figsize=(12, 10), dpi=100)
+    fig_eye, eye_const_axes = plt.subplots(2, 2, figsize=(12, 10), dpi=80)
     eye_real_ax: Axes = eye_const_axes[0, 0]
     eye_imag_ax: Axes = eye_const_axes[1, 0]
     pulse_ax: Axes = eye_const_axes[0, 1]
@@ -63,8 +63,8 @@ if __name__ == "__main__":
         )
         normalized_time /= 2  # SOQPSK symbols are spaced at T/2
         eye_diagram(
-            normalized_time,
-            modulated_signal,
+            normalized_time[:normalized_time.size//4],
+            modulated_signal[:normalized_time.size//4],
             sps=sps,
             modulo=4,
             eye_ax=(eye_real_ax, eye_imag_ax),

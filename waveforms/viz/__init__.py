@@ -42,12 +42,14 @@ def eye_diagram(  # noqa: PLR0913
             signal.real[idx_start : idx_start + sps * modulo + 1],
             linewidth=0.3,
             color=color,
+            alpha=0.7,
         )
         imag_ax.plot(
             (time[idx_start : idx_start + sps * modulo + 1] - time[idx_start]),
             signal.imag[idx_start : idx_start + sps * modulo + 1],
             linewidth=0.3,
             color=color,
+            alpha=0.7,
         )
 
     # Format Eye diagrams

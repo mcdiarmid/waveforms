@@ -76,7 +76,8 @@ def freq_pulse_soqpsk_mil(sps: int = 8) -> NDArray[np.float64]:
     Returns:
         NDArray[np.float64]: SOQPSK-MIL frequency pulse.
     """
-    return freq_pulse_soqpsk(b=0, t1=0.25, t2=0, rho=0, sps=sps)
+    # return freq_pulse_soqpsk(b=0, t1=0.25, t2=0, rho=0, sps=sps)
+    return np.ones(sps, dtype=np.float64) / 2
 
 
 def freq_pulse_soqpsk_tg(sps: int = 8) -> NDArray[np.float64]:
