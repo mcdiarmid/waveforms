@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "waveforms-viz"
+authors = [
+    {name = "Campbell McDiarmid", email = "campbell.mcdiarmid@icloud.com"}
+]
+
+description = "Visualization extension for the waveforms module."
+readme = "README.md"
+requires-python = ">=3.8"
+keywords = ["waveforms-viz"]
+license = {text = "MIT"}
+classifiers = [
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "numpy",
+    "PySide6",
+    "matplotlib",
+    "pyqtgraph",
+]
+version = "0.1.0"
+
+[tool.setuptools.packages.find]
+include = ["waveforms*"]

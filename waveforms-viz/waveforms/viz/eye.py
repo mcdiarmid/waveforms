@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 def eye_diagram(  # noqa: PLR0913
     time: NDArray[np.float64],
-    signal: NDArray[np.float64],
+    signal: NDArray[np.complex64],
     sps: int = 8,
     modulo: int = 4,
     *,

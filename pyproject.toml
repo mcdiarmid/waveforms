@@ -1,6 +1,9 @@
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [project]
 name = "waveforms"
@@ -17,22 +20,25 @@ classifiers = [
     "Natural Language :: English",
     "Programming Language :: Python :: 3",
 ]
+version = "0.1.0"
 dependencies = [
     "numpy",
     "scipy",
-    "matplotlib",
 ]
-version = "0.1.0"
 
 [project.optional-dependencies]
+viz = [
+    "waveforms-viz @ {root:uri}/waveforms-viz",
+]
+all = [
+    "waveforms[viz]"
+]
 dev = [
+    "waveforms[all]",
     "ruff",
     "black",
     "pytest",
 ]
-
-[tool.setuptools.packages.find]
-include = ["waveforms*"]
 
 [tool.black]
 line-length = 100
@@ -48,7 +54,8 @@ select = [  # See https://docs.astral.sh/ruff/rules/
     "ALL"
 ]
 ignore = [
-    "D100", "D101", "D107", "ANN101"
+    "D100", "D101", "D107", "ANN101",
+    "RUF200",  # relative sub-project path not supported in any PEP
 ]
 
 [tool.ruff.format]

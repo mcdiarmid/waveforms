@@ -4,7 +4,10 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from waveforms.cpm.trellis.model import FiniteStateMachine, SOQPSKTrellis4x2
+from waveforms.cpm.trellis.model import (
+    FiniteStateMachine,
+    SOQPSKTrellis4x2,
+)
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
