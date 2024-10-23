@@ -35,9 +35,9 @@ all = [
 ]
 dev = [
     "waveforms[all]",
-    "ruff",
-    "black",
-    "pytest",
+    "ruff==0.7",
+    "black==24.10.0",
+    "pytest==8.3.3",
 ]
 
 [tool.black]
