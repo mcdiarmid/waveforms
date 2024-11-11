@@ -22,7 +22,8 @@ classifiers = [
 ]
 version = "0.1.0"
 dependencies = [
-    "waveforms-core @ {root:uri}/waveforms-core",
+    "numpy",
+    "scipy",
 ]
 
 [project.optional-dependencies]
