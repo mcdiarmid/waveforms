@@ -28,15 +28,15 @@ def pi_fraction_formatter(x: float, _pos: int) -> str:
     if frac.numerator == 0:
         label = "0"
     elif abs(frac.numerator) == 1 and frac.denominator == 1:
-        label = fr"${'' if frac.numerator > 0 else '-'}\pi$"
+        label = rf"${'' if frac.numerator > 0 else '-'}\pi$"
     elif frac.denominator == 1:
-        label = fr"${frac.numerator}\pi$"
+        label = rf"${frac.numerator}\pi$"
     else:
-        label = fr"$\frac{{{frac.numerator}\pi}}{{{frac.denominator}}}$"
+        label = rf"$\frac{{{frac.numerator}\pi}}{{{frac.denominator}}}$"
     return label
 
 
-def phase_tree(
+def phase_tree(  # noqa: PLR0913
     signal: NDArray[np.complex128],
     sps: int,
     off: float | None = None,
@@ -49,7 +49,7 @@ def phase_tree(
     Args:
         signal: Complex time-domain input signal.
         sps: Samples per symbol.
-        mod_index: Modulation Index.
+        off: Manual offset for phase tree (default zeros T=0 value).
         modulo: x-axis symbols before wrap.
         color: Optional color
         axis: Optional axis if new figure is not desired.
@@ -58,7 +58,7 @@ def phase_tree(
         Figure of plotted phase tree.
     """
     axis = axis or plt.subplots(1)[-1]
-    phase = np.angle(signal) 
+    phase = np.angle(signal)
     t_array = np.linspace(0, modulo, modulo * sps + 1, endpoint=True)
     for chunk in range(phase.size // (sps * modulo)):
         sym = chunk * modulo
@@ -72,7 +72,7 @@ def phase_tree(
         )
     axis.set_ylabel("Phase [radians]")
     axis.set_xlabel("Symbol Time [t/T]")
-    axis.yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(np.pi/4))
+    axis.yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(np.pi / 4))
     axis.yaxis.set_major_formatter(pi_fraction_formatter)
     axis.grid(which="both", linestyle=":")
     return axis.figure
