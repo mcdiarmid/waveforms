@@ -27,7 +27,13 @@ def freq_pulse_soqpsk(
         NDArray[np.float64]: SOQPSK frequency pulse.
     """
     tau_max = (t1 + t2) * 2
-    t_norm = np.linspace(-tau_max, tau_max, num=int(tau_max * sps * 2) + 1, dtype=np.float64)
+    t_norm = np.linspace(
+        -tau_max,
+        tau_max,
+        num=int(tau_max * sps * 2),
+        dtype=np.float64,
+        endpoint=False,
+    )
     g = (
         np.cos(np.pi * rho * b * t_norm / 2)
         / (1 - np.power(rho * b * t_norm, 2))

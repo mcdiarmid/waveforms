@@ -16,9 +16,8 @@ def eye_diagram(  # noqa: PLR0913
     signal: NDArray[np.complex64],
     sps: int = 8,
     modulo: int = 4,
-    *,
     color: str | None = None,
-    eye_ax: tuple[Axes, Axes] | None = None,
+    axes: tuple[Axes, Axes] | None = None,
 ) -> Figure:
     """Plots an eye diagram of the provided signal.
 
@@ -28,12 +27,12 @@ def eye_diagram(  # noqa: PLR0913
         sps: Samples per symbol
         modulo: Eye diagram t_max
         color: Color of the eye diagram
-        eye_ax: Axes if a new figure is not desired
+        axes: Axes if a new figure is not desired
 
     Returns:
         Plotted figure
     """
-    real_ax, imag_ax = eye_ax or plt.subplots(2)[-1]
+    real_ax, imag_ax = axes or plt.subplots(2)[-1]
 
     for i in range((time.size - 1) // (sps * modulo)):
         idx_start = i * sps * modulo

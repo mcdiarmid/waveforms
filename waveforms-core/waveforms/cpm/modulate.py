@@ -80,8 +80,14 @@ def cpm_modulate(
         mod_index = np.array(mod_index, dtype=np.float64)
 
     # Normalized time array
-    num_points = (symbols.size + 1) * sps + 1
-    normalized_time = np.linspace(0, symbols.size + 1, num=num_points, dtype=np.float64)
+    num_points = symbols.size * sps
+    normalized_time = np.linspace(
+        0,
+        symbols.size + 1,
+        num=num_points,
+        dtype=np.float64,
+        endpoint=False,
+    )
 
     # Create an array of alternating mod indicies
     ith_mod_index = np.array(range(symbols.size)) % mod_index.size
@@ -89,9 +95,9 @@ def cpm_modulate(
 
     # Interpolate symbols
     interpolated_soft_symbols = np.zeros(num_points, dtype=np.float64)
-    interpolated_soft_symbols[sps:-1:sps] = symbols * mod_index
+    interpolated_soft_symbols[::sps] = symbols * mod_index
 
     # Phase modulate signal
-    freq_pulses = np.convolve(interpolated_soft_symbols, pulse_filter, mode="same")
-    modulated_signal = frequency_modulate(freq_pulses, sps=sps, initial_phase=np.pi / 4)
+    freq_pulses = np.convolve(interpolated_soft_symbols, pulse_filter, mode="full")
+    modulated_signal = frequency_modulate(freq_pulses, sps=sps, initial_phase=0)
     return normalized_time, modulated_signal
