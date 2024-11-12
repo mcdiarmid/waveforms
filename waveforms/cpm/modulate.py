@@ -61,7 +61,7 @@ def cpm_modulate(
     mod_index: float | NDArray[np.float64],
     pulse_filter: NDArray[np.float64],
     sps: int = 8,
-) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+) -> tuple[NDArray[np.float64], NDArray[np.complex128]]:
     """Generic CPM Modulation.
 
     Args:
@@ -80,7 +80,7 @@ def cpm_modulate(
         mod_index = np.array(mod_index, dtype=np.float64)
 
     # Normalized time array
-    num_points = symbols.size * sps
+    num_points = (symbols.size + 1) * sps
     normalized_time = np.linspace(
         0,
         symbols.size + 1,
@@ -95,9 +95,9 @@ def cpm_modulate(
 
     # Interpolate symbols
     interpolated_soft_symbols = np.zeros(num_points, dtype=np.float64)
-    interpolated_soft_symbols[::sps] = symbols * mod_index
+    interpolated_soft_symbols[sps:-1:sps] = symbols * mod_index
 
     # Phase modulate signal
-    freq_pulses = np.convolve(interpolated_soft_symbols, pulse_filter, mode="full")
-    modulated_signal = frequency_modulate(freq_pulses, sps=sps, initial_phase=0)
+    freq_pulses = np.convolve(interpolated_soft_symbols, pulse_filter, mode="same")
+    modulated_signal = frequency_modulate(freq_pulses, sps=sps, initial_phase=np.pi/4)
     return normalized_time, modulated_signal

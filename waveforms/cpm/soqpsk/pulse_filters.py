@@ -32,7 +32,7 @@ def freq_pulse_soqpsk(
         tau_max,
         num=int(tau_max * sps * 2),
         dtype=np.float64,
-        endpoint=False,
+        endpoint=True,
     )
     g = (
         np.cos(np.pi * rho * b * t_norm / 2)

@@ -19,15 +19,15 @@ from waveforms.viz import eye_diagram
 
 rng = np.random.Generator(np.random.PCG64())
 
-PN_DEGREE = 13
+PN_DEGREE = 14
 DATA_GEN = PNSequence(PN_DEGREE)
-DATA_BUFFER = np.packbits([DATA_GEN.next_bit() for _ in range(2**PN_DEGREE - 1)])
+DATA_BUFFER = np.packbits(DATA_GEN.generate_sequence())
 j = complex(0, 1)
 
 
 if __name__ == "__main__":
     # Constants
-    sps = 20
+    sps = 10
     fft_size = 2**10
     mod_index = 1 / 2
     pulse_pad = 0.5
@@ -62,6 +62,7 @@ if __name__ == "__main__":
             pulse_filter=pulse_filter,
             sps=sps,
         )
+        # modulated_signal[:] = modulated_signal * np.exp(-1*j*np.pi/4)
         signal_dict[label] = modulated_signal[:]
         normalized_time /= 2  # SOQPSK symbols are spaced at T/2
         eye_diagram(

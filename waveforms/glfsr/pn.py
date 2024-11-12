@@ -91,8 +91,19 @@ def generate_mask(degree: int) -> int:
 
 class PNSequence(GLFSR):
     def __init__(self, degree: int) -> None:
+        self.degree = degree
         super().__init__(generate_mask(degree), (1 << degree) - 1)
 
+    def generate_sequence(self) -> list[int]:
+        """Generates the full GLFSR sequence.
+
+        Args:
+            None
+
+        Returns:
+            list[int]: Sequence of bits.
+        """
+        return [self.next_bit() for _ in range(2**self.degree - 1)]
 
 if __name__ == "__main__":
     import numpy as np
