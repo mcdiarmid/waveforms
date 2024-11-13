@@ -99,5 +99,5 @@ def cpm_modulate(
 
     # Phase modulate signal
     freq_pulses = np.convolve(interpolated_soft_symbols, pulse_filter, mode="same")
-    modulated_signal = frequency_modulate(freq_pulses, sps=sps, initial_phase=np.pi/4)
+    modulated_signal = frequency_modulate(freq_pulses, sps=sps, initial_phase=0)
     return normalized_time, modulated_signal

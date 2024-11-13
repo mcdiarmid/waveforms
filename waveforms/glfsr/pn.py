@@ -105,6 +105,7 @@ class PNSequence(GLFSR):
         """
         return [self.next_bit() for _ in range(2**self.degree - 1)]
 
+
 if __name__ == "__main__":
     import numpy as np
 
