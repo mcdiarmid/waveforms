@@ -90,7 +90,7 @@ if __name__ == "__main__":
             .view(np.complex128)
             .flatten()
         )
-        modulated_signal *= np.exp(-j * 1 * np.pi / 4)
+        modulated_signal[:] *= np.exp(-j * 1 * np.pi / 4)
         freq_pulses = np.angle(modulated_signal[1:] * modulated_signal.conj()[:-1]) * sps / np.pi
 
         # Received signal
@@ -105,7 +105,7 @@ if __name__ == "__main__":
 
         pulse_ax = iq_ax.twinx()
         pulse_ax.stem(
-            normalized_time[::sps][1:-1],
+            normalized_time[sps::sps],
             symbols / 2,
             markerfmt="ko",
             linefmt="k-",

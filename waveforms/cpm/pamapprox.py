@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from functools import reduce
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -22,10 +21,10 @@ def pam_unit_pulse(
     Returns:
         NDArray[np.float64]: PAM unit pulse
     """
-    response = np.zeros(phase_pulse.size * 2 - 1, dtype=np.float64)
+    response = np.zeros(phase_pulse.size * 2 + 1, dtype=np.float64)
     pih = mod_index * np.pi
     response[1 : phase_pulse.size + 1] = np.sin(2 * pih * phase_pulse) / np.sin(pih)
-    response[phase_pulse.size - 1 :] = np.sin(pih - 2 * pih * phase_pulse) / np.sin(pih)
+    response[phase_pulse.size + 1 :] = np.sin(pih - 2 * pih * phase_pulse) / np.sin(pih)
     return response
 
 
@@ -75,7 +74,7 @@ def rho_pulses(
             ],
             dtype=np.float64,
         )
-        rho_k: NDArray[np.float64] = (c_array[k] * reduce(np.multiply, time_shifted_u))[
+        rho_k: NDArray[np.float64] = (c_array[k] * np.prod(time_shifted_u, axis=0))[
             a_matrix[k, -1] * sps : -length * sps
         ]
         rho.append(rho_k)
