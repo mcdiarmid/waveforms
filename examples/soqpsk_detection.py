@@ -24,7 +24,7 @@ from waveforms.viterbi.algorithm import SOQPSKTrellisDetector
 # Set seeds so iterations on implementation can be compared better
 rng = np.random.Generator(np.random.PCG64(seed=1))
 
-PN_DEGREE = 15
+PN_DEGREE = 14
 DATA_GEN = PNSequence(PN_DEGREE)
 DATA_BUFFER = np.packbits(DATA_GEN.generate_sequence())
 j = complex(0, 1)
@@ -36,9 +36,10 @@ _logger = logging.getLogger(__name__)
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     # Constants
-    sps = 20
+    sps = 30
     fft_size = 2**9
     pulse_pad = 0.5
+    sigma = np.sqrt(2) / 2
     P = 4
 
     # Bits of information to transmit
@@ -81,16 +82,19 @@ if __name__ == "__main__":
             pulse_filter=pulse_filter,
             sps=sps,
         )
-        noise = (
-            rng.normal(
-                loc=0,
-                scale=1.30 * np.sqrt(2) / 2,
-                size=(modulated_signal.size, 2),
-            )
-            .view(np.complex128)
-            .flatten()
-        )
-        modulated_signal[:] *= np.exp(-j * 1 * np.pi / 4)
+        real_noise = rng.normal(0, sigma, modulated_signal.size)
+        imag_noise = rng.normal(0, sigma, modulated_signal.size)
+        noise = real_noise + 1j * imag_noise
+        # noise = (
+        #     rng.normal(
+        #         loc=0,
+        #         scale=sigma,
+        #         size=(modulated_signal.size, 2),
+        #     )
+        #     .view(np.complex128)
+        #     .flatten()
+        # )
+        modulated_signal[:] *= np.exp(-j * np.pi / 4)
         freq_pulses = np.angle(modulated_signal[1:] * modulated_signal.conj()[:-1]) * sps / np.pi
 
         # Received signal
@@ -147,6 +151,7 @@ if __name__ == "__main__":
         n0 = marker2 - 10 * np.log10(rbw)
         c0 = 10 * np.log10(np.power(10, c0n0 / 10) - np.power(10, n0 / 10))
         ebn0 = c0 - 2.95 - n0  # This 2.95 is a ratio of peak C0 to average C0 for SOQPSK.
+        ebn0_calc = 10 * np.log10(sps / (2 * sigma ** 2))
 
         # Pulse Truncation Filters
         L = int(pulse_filter.size / sps)
@@ -224,7 +229,8 @@ if __name__ == "__main__":
             (error_idx,) = np.where(iter_va_output_symbols[:min_size] - aligned_symbols[:min_size])
             log_msg = (
                 f"SOQPSK-{label} {detector_type}: "
-                f"EbN0 = {ebn0:.2f} dB, "
+                f"EbN0 (meas) = {ebn0:.2f} dB, "
+                f"EbN0 (calc) = {ebn0_calc:.2f} dB, "
                 f"SER = {len(error_idx)/min_size:.3E}"
             )
             _logger.info(log_msg)
@@ -279,4 +285,3 @@ if __name__ == "__main__":
 
     fig_eye.tight_layout()
     fig_eye.savefig(Path(__file__).parent.parent / "images" / "soqpsk_pam.png")
-    fig_eye.show()

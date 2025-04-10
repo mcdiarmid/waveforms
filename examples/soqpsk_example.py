@@ -148,4 +148,3 @@ if __name__ == "__main__":
 
     fig_eye.tight_layout()
     fig_eye.savefig(Path(__file__).parent.parent / "images" / "soqpsk_waveforms1.png")
-    fig_eye.show()
