@@ -22,7 +22,6 @@ rng = np.random.Generator(np.random.PCG64())
 PN_DEGREE = 15
 DATA_GEN = PNSequence(PN_DEGREE)
 DATA_BUFFER = np.packbits(DATA_GEN.generate_sequence())
-j = complex(0, 1)
 
 
 if __name__ == "__main__":

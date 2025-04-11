@@ -14,9 +14,6 @@ from waveforms.cpm.trellis.model import (
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
-j = 1j
-
-
 class SOQPSKTrellisDetector:
     def __init__(
         self,
@@ -33,7 +30,7 @@ class SOQPSKTrellisDetector:
                 SOQPSKTrellis4x2
             ),
         )
-        self.state_exp_term = [+j, -1, +1, -j]
+        self.state_exp_term = [+1j, -1, +1, -1j]
         self.bi_history = np.zeros(
             (self.fsm.branches_per_column, length),
             dtype=np.float64,

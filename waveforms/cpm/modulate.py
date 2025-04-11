@@ -9,9 +9,6 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 
-j = complex(0, 1)
-
-
 def phase_modulate(
     phase: NDArray[np.float64],
     sensitivity: float,
@@ -25,7 +22,7 @@ def phase_modulate(
     Returns:
         NDArray[np.float64]: Phase modulated signal.
     """
-    return np.exp(j * sensitivity * phase)
+    return np.exp(1j * sensitivity * phase)
 
 
 def frequency_modulate(
@@ -54,7 +51,7 @@ def frequency_modulate(
     for i, sample in enumerate(freq_pulses):
         revs = (revs + sample) % sps
         phase_array[i] = revs * sensitivity + initial_phase
-    return np.exp(j * phase_array)
+    return np.exp(1j * phase_array)
 
 
 def cpm_modulate(
@@ -100,5 +97,5 @@ def cpm_modulate(
 
     # Phase modulate signal
     freq_pulses = np.convolve(interpolated_soft_symbols, pulse_filter, mode="same")
-    modulated_signal = frequency_modulate(freq_pulses, sps=sps, initial_phase=0)
+    modulated_signal = frequency_modulate(freq_pulses, sps=sps, initial_phase=np.pi / 4)
     return normalized_time, modulated_signal

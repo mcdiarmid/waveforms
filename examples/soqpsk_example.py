@@ -23,7 +23,6 @@ rng = np.random.Generator(np.random.PCG64())
 PN_DEGREE = 13
 DATA_GEN = PNSequence(PN_DEGREE)
 DATA_BUFFER = np.packbits(DATA_GEN.generate_sequence())
-j = complex(0, 1)
 
 
 if __name__ == "__main__":
@@ -63,7 +62,7 @@ if __name__ == "__main__":
             pulse_filter=pulse_filter,
             sps=sps,
         )
-        modulated_signal[:] = modulated_signal * np.exp(-1 * j * np.pi / 4)
+        modulated_signal[:] = modulated_signal * np.exp(-1j * np.pi / 4)
         signal_dict[label] = modulated_signal[:]
         normalized_time /= 2  # SOQPSK symbols are spaced at T/2
         eye_diagram(
