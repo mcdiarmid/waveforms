@@ -14,6 +14,7 @@ from waveforms.cpm.trellis.model import (
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
+
 class SOQPSKTrellisDetector:
     def __init__(
         self,
@@ -24,11 +25,7 @@ class SOQPSKTrellisDetector:
         self.i = 0
         self.length = length
         self.fsm = FiniteStateMachine(
-            trellis=(
-                SOQPSKTrellis4x2DiffEncoded
-                if differantial_encoding else
-                SOQPSKTrellis4x2
-            ),
+            trellis=(SOQPSKTrellis4x2DiffEncoded if differantial_encoding else SOQPSKTrellis4x2),
         )
         self.state_exp_term = [+1j, -1, +1, -1j]
         self.bi_history = np.zeros(

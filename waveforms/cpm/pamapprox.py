@@ -44,8 +44,8 @@ def pam_unit_pulse2(
     """
     response = np.zeros(phase_pulse.size * 2 - 1, dtype=np.float64)
     pih = mod_index * np.pi
-    response[:phase_pulse.size] = np.sin(2 * pih * phase_pulse) / np.sin(pih)
-    response[phase_pulse.size:] = np.sin(pih - 2 * pih * phase_pulse[1:]) / np.sin(pih)
+    response[: phase_pulse.size] = np.sin(2 * pih * phase_pulse) / np.sin(pih)
+    response[phase_pulse.size :] = np.sin(pih - 2 * pih * phase_pulse[1:]) / np.sin(pih)
     return response
 
 

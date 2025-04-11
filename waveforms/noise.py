@@ -21,8 +21,12 @@ def generate_complex_awgn(
         NDArray[np.complex128]: Array of samples containing AWGN.
     """
     rng = rng or DEFAULT_RNG
-    return rng.normal(
-        loc=0,
-        scale=sigma,
-        size=(size, 2),
-    ).view(np.complex128).flatten()
+    return (
+        rng.normal(
+            loc=0,
+            scale=sigma,
+            size=(size, 2),
+        )
+        .view(np.complex128)
+        .flatten()
+    )

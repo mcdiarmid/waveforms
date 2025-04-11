@@ -70,7 +70,7 @@ if __name__ == "__main__":
             modulated_signal[: normalized_time.size // 4],
             sps=sps,
             modulo=4,
-            t_offset=0 if label == "MIL" else 1/sps/4,
+            t_offset=0 if label == "MIL" else 1 / sps / 4,
             axes=(eye_real_ax, eye_imag_ax),
             color=color,
         )

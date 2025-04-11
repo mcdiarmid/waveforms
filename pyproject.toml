@@ -54,6 +54,7 @@ select = [  # See https://docs.astral.sh/ruff/rules/
 ignore = [
     "D100", "D101", "D107", "ANN101",
     "RUF200",  # relative sub-project path not supported in any PEP
+    "ISC001", "COM812", # Conflicts with formatter
 ]
 
 [tool.ruff.format]

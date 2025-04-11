@@ -129,7 +129,7 @@ if __name__ == "__main__":
             scale_by_freq=False,
         )
 
-        ebn0_calc = 10 * np.log10(sps / (2 * sigma ** 2))
+        ebn0_calc = 10 * np.log10(sps / (2 * sigma**2))
 
         # Pulse Truncation Filters
         L = int(pulse_filter.size / sps)
@@ -203,8 +203,10 @@ if __name__ == "__main__":
             aligned_symbols = symbols[delay:]
             min_size = min(aligned_symbols.size, iter_va_output_symbols.size)
             t = np.linspace(0, min_size - 1, num=min_size)
-            sym_err_idx, = np.where(iter_va_output_symbols[:min_size] - aligned_symbols[:min_size])
-            bit_err_idx, = np.where(iter_va_output_bits[:min_size] - bit_array[:min_size])
+            (sym_err_idx,) = np.where(
+                iter_va_output_symbols[:min_size] - aligned_symbols[:min_size]
+            )
+            (bit_err_idx,) = np.where(iter_va_output_bits[:min_size] - bit_array[:min_size])
             log_msg = (
                 f"SOQPSK-{label} {detector_type}: "
                 f"Eb/N0 = {ebn0_calc:.2f} dB, "
