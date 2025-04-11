@@ -16,6 +16,7 @@ from waveforms.cpm.pcmfm import (
 )
 from waveforms.glfsr import PNSequence
 
+
 rng = np.random.Generator(np.random.PCG64())
 
 PN_DEGREE = 15

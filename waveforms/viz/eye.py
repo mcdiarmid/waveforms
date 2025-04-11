@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 
+
 if TYPE_CHECKING:
     import numpy as np
     from matplotlib.axes import Axes
@@ -16,6 +17,7 @@ def eye_diagram(  # noqa: PLR0913
     signal: NDArray[np.complex64],
     sps: int = 8,
     modulo: int = 4,
+    t_offset: float = 0,
     color: str | None = None,
     axes: tuple[Axes, Axes] | None = None,
 ) -> Figure:
@@ -26,6 +28,7 @@ def eye_diagram(  # noqa: PLR0913
         signal: Array of modulated signal samples
         sps: Samples per symbol
         modulo: Eye diagram t_max
+        t_offset: Offset for t
         color: Color of the eye diagram
         axes: Axes if a new figure is not desired
 
@@ -37,14 +40,14 @@ def eye_diagram(  # noqa: PLR0913
     for i in range((time.size - 1) // (sps * modulo)):
         idx_start = i * sps * modulo
         real_ax.plot(
-            (time[idx_start : idx_start + sps * modulo + 1] - time[idx_start]),
+            (time[idx_start : idx_start + sps * modulo + 1] - time[idx_start]) + t_offset,
             signal.real[idx_start : idx_start + sps * modulo + 1],
             linewidth=0.3,
             color=color,
             alpha=0.7,
         )
         imag_ax.plot(
-            (time[idx_start : idx_start + sps * modulo + 1] - time[idx_start]),
+            (time[idx_start : idx_start + sps * modulo + 1] - time[idx_start]) + t_offset,
             signal.imag[idx_start : idx_start + sps * modulo + 1],
             linewidth=0.3,
             color=color,

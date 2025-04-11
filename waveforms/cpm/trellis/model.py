@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
+
 _logger = logging.getLogger(__name__)
 
 
@@ -220,6 +221,34 @@ SOQPSKTrellis4x2 = Trellis(
             Branch(inp=1, out=+2, start=2, end=3),
             Branch(inp=0, out=-2, start=3, end=2),
             Branch(inp=1, out=0, start=3, end=3),
+        ],
+    ],
+)
+
+
+SOQPSKTrellis4x2DiffEncoded = Trellis(
+    branches=[
+        # Column 1 (n-even/I)
+        [
+            Branch(inp=0, out=0, start=0, end=0),
+            Branch(inp=1, out=+2, start=0, end=2),
+            Branch(inp=0, out=0, start=1, end=1),
+            Branch(inp=1, out=-2, start=1, end=3),
+            Branch(inp=1, out=-2, start=2, end=0),
+            Branch(inp=0, out=0, start=2, end=2),
+            Branch(inp=1, out=+2, start=3, end=1),
+            Branch(inp=0, out=0, start=3, end=3),
+        ],
+        # Column 2 (n-odd/Q)
+        [
+            Branch(inp=0, out=0, start=0, end=0),
+            Branch(inp=1, out=-2, start=0, end=1),
+            Branch(inp=1, out=+2, start=1, end=0),
+            Branch(inp=0, out=0, start=1, end=1),
+            Branch(inp=0, out=0, start=2, end=2),
+            Branch(inp=1, out=+2, start=2, end=3),
+            Branch(inp=1, out=-2, start=3, end=2),
+            Branch(inp=0, out=0, start=3, end=3),
         ],
     ],
 )

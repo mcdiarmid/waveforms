@@ -1,6 +1,7 @@
 import numpy as np
 from numpy.typing import NDArray
 
+
 SOQPSK_NUMER = 1
 SOQPSK_DENOM = 2
 
@@ -30,7 +31,7 @@ def freq_pulse_soqpsk(
     t_norm = np.linspace(
         -tau_max,
         tau_max,
-        num=int(tau_max * sps * 2),
+        num=int(tau_max * sps * 2) + 1,
         dtype=np.float64,
         endpoint=True,
     )
@@ -45,7 +46,7 @@ def freq_pulse_soqpsk(
         w[idx] = (1 + np.cos(np.pi * (t_norm[idx] / 2 - t1) / t2)) / 2
         w[np.where(np.abs(t_norm) > tau_max)] = 0
 
-    a_scalar = sps / (np.cumsum(g * w)[-1] * 2)
+    a_scalar = sps / (np.sum(g * w) * 2)
     return a_scalar * g * w
 
 
@@ -98,7 +99,9 @@ def freq_pulse_soqpsk_mil(sps: int = 8) -> NDArray[np.float64]:
     Returns:
         NDArray[np.float64]: SOQPSK-MIL frequency pulse.
     """
-    return freq_pulse_soqpsk(b=0, t1=0.25, t2=0, rho=0, sps=sps)
+    g = np.ones(sps + 1, dtype=np.float64) / 2
+    g[0] = 0
+    return g
 
 
 def freq_pulse_soqpsk_tg(sps: int = 8) -> NDArray[np.float64]:

@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from scipy.signal import firwin, kaiserord
 
+
 if TYPE_CHECKING:
     import numpy as np
     from numpy.typing import NDArray

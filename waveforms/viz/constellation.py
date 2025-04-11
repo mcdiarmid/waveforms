@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 
+
 if TYPE_CHECKING:
     import numpy as np
     from matplotlib.axes import Axes

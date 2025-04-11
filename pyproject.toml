@@ -3,7 +3,6 @@ name = "waveforms"
 authors = [
     {name = "Campbell McDiarmid", email = "campbell.mcdiarmid@icloud.com"}
 ]
-
 description = "Simulation tools for modulating and demodulating data using various waveform definitions."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -22,7 +21,6 @@ dependencies = [
 [dependency-groups]
 dev = [
     "ruff == 0.7",
-    "black >= 20.0.0, < 25",
     "pytest == 8.3.3",
 ]
 
@@ -42,9 +40,6 @@ include = ["waveforms*"]
 
 [tool.uv]
 package = true
-
-[tool.black]
-line-length = 100
 
 [tool.ruff]
 line-length = 100
@@ -66,10 +61,13 @@ quote-style = "double"
 indent-style = "space"
 line-ending = "auto"
 
+[tool.ruff.lint.isort]
+lines-after-imports = 2
+
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["E402", "F403", "F401", "D104"]
 "tests/*.py" = ["S101"]
+"examples/*.py" = ["ERA001"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
-

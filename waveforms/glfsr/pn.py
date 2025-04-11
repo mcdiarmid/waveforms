@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from waveforms.glfsr.glfsr import GLFSR
 
+
 GALOIS_LFSR_POLYS: list[int] = [  # https://docs.amd.com/v/u/en-US/xapp052
     [0],
     [1],

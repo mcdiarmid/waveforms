@@ -19,7 +19,9 @@ from waveforms.cpm.trellis.model import (
     SOQPSKTrellis4x2,
 )
 from waveforms.glfsr import PNSequence
+from waveforms.noise import generate_complex_awgn
 from waveforms.viterbi.algorithm import SOQPSKTrellisDetector
+
 
 # Set seeds so iterations on implementation can be compared better
 rng = np.random.Generator(np.random.PCG64(seed=1))
@@ -36,10 +38,10 @@ _logger = logging.getLogger(__name__)
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     # Constants
-    sps = 30
+    sps = 10
     fft_size = 2**9
     pulse_pad = 0.5
-    sigma = np.sqrt(2) / 2
+    sigma = np.sqrt(2) / 4
     P = 4
 
     # Bits of information to transmit
@@ -82,18 +84,7 @@ if __name__ == "__main__":
             pulse_filter=pulse_filter,
             sps=sps,
         )
-        real_noise = rng.normal(0, sigma, modulated_signal.size)
-        imag_noise = rng.normal(0, sigma, modulated_signal.size)
-        noise = real_noise + 1j * imag_noise
-        # noise = (
-        #     rng.normal(
-        #         loc=0,
-        #         scale=sigma,
-        #         size=(modulated_signal.size, 2),
-        #     )
-        #     .view(np.complex128)
-        #     .flatten()
-        # )
+        noise = generate_complex_awgn(sigma, modulated_signal.size, rng)
         modulated_signal[:] *= np.exp(-j * np.pi / 4)
         freq_pulses = np.angle(modulated_signal[1:] * modulated_signal.conj()[:-1]) * sps / np.pi
 
@@ -157,7 +148,8 @@ if __name__ == "__main__":
         L = int(pulse_filter.size / sps)
         truncation = 1
         truncated_freq_pulse = pulse_filter[
-            int((L - truncation) * sps / 2) : int((L + truncation) * sps / 2) + 1
+            int((L - truncation) * sps / 2) :
+            int((L + truncation) * sps / 2) + 1
         ]
         truncated_freq_pulse = normalize_cpm_filter(sps=sps, g=truncated_freq_pulse)
         truncated_phase_pulse = np.cumsum(truncated_freq_pulse) / sps
@@ -169,7 +161,7 @@ if __name__ == "__main__":
         )
         mf_outputs_pt[1, :] = np.convolve(
             received_signal,
-            np.exp(-j * 2 * np.pi * mod_index * 0 * truncated_phase_pulse),
+            np.exp(-j * 2 * np.pi * mod_index * +0 * truncated_phase_pulse),
             mode="same",
         )
         mf_outputs_pt[2, :] = np.convolve(
@@ -180,6 +172,18 @@ if __name__ == "__main__":
 
         # PAM De-composition rho pulses/matched filters
         rho = rho_pulses(pulse_filter, mod_index, sps, k_max=2)
+
+        # if label == "MIL":
+        #     rho = [
+        #         np.concatenate([r[:int(r.size//2)], r[int(r.size//2)+1:]])
+        #         for r in rho
+        #     ]
+        # else:
+        #     rho = [
+        #         r[:-1]
+        #         for r in rho
+        #     ]
+
         d_max = max([rho_k.size for rho_k in rho])
 
         # Match filter outputs
@@ -229,9 +233,10 @@ if __name__ == "__main__":
             (error_idx,) = np.where(iter_va_output_symbols[:min_size] - aligned_symbols[:min_size])
             log_msg = (
                 f"SOQPSK-{label} {detector_type}: "
-                f"EbN0 (meas) = {ebn0:.2f} dB, "
-                f"EbN0 (calc) = {ebn0_calc:.2f} dB, "
+                f"Eb/N0 (meas) = {ebn0:.2f} dB, "
+                f"Eb/N0 (calc) = {ebn0_calc:.2f} dB, "
                 f"SER = {len(error_idx)/min_size:.3E}"
+                # f"BER = {len(error_idx)/min_size:.3E}"
             )
             _logger.info(log_msg)
             errors_ax.plot(
@@ -285,3 +290,4 @@ if __name__ == "__main__":
 
     fig_eye.tight_layout()
     fig_eye.savefig(Path(__file__).parent.parent / "images" / "soqpsk_pam.png")
+    plt.show()

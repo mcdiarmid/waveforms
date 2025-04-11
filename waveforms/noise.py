@@ -10,13 +10,19 @@ def generate_complex_awgn(
     size: int,
     rng: np.random.Generator = None,
 ) -> NDArray[np.complex128]:
+    """Generates complext AWGN.
+
+    Args:
+        sigma: Amplitude standard deviation.
+        size: Number of samples.
+        rng: Random number generator.
+
+    Returns:
+        NDArray[np.complex128]: Array of samples containing AWGN.
+    """
     rng = rng or DEFAULT_RNG
-    return (
-        rng.normal(
-            loc=0,
-            scale=sigma * np.sqrt(2) / 2,
-            size=(size, 2),
-        )
-        .view(np.complex128)
-        .flatten()
-    )
+    return rng.normal(
+        loc=0,
+        scale=sigma,
+        size=(size, 2),
+    ).view(np.complex128).flatten()

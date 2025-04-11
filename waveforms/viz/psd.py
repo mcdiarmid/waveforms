@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker
 import numpy as np
 
+
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
     from matplotlib.figure import Figure
