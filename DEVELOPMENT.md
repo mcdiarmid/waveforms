@@ -1,13 +1,15 @@
 # Developer notes
 
-## Setting-up an Environment
-
-### With pip and venv
+## Environment Setup
 
 ```bash
-python -m venv venv
-. venv/bin/activate
-pip install --upgrade pip
-pip install -e .[dev]
-pip install -e waveforms-*  # Currently required for editable sub-modules, need to fix this
+uv sync --group dev --extra viz
+```
+
+## Dev Checks
+
+```bash
+uv run ruff check
+uv run ruff format --check
+uv run pytest
 ```
