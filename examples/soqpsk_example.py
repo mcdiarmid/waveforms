@@ -158,9 +158,6 @@ if __name__ == "__main__":
     psd_ax.legend(loc="upper center", fontsize=8, ncol=4)
     psd_ax.xaxis.set_major_locator(MultipleLocator(0.5))
 
-    fig_eye.tight_layout()
-    fig_eye.savefig(Path(__file__).parent.parent / "images" / "soqpsk_waveforms1.png")
-
     soqpsk_tg = signal_dict["TG"]
     qpsk_esque_signal = np.zeros_like(soqpsk_tg)
     qpsk_esque_signal[sps:] += soqpsk_tg.real[:-sps]
@@ -177,4 +174,7 @@ if __name__ == "__main__":
         sps=sps,
         axis=tree_ax,
     )
+    fig_eye.tight_layout()
+    fig_eye.savefig(Path(__file__).parent.parent / "images" / "soqpsk_waveforms1.png")
+
     plt.show()
