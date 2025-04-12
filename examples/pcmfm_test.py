@@ -14,6 +14,8 @@ from waveforms.cpm.pcmfm import (
     PCMFMSymbolMapper,
     freq_pulse_pcmfm,
 )
+from waveforms.cpm.trellis.encoder import TrellisEncoder
+from waveforms.cpm.trellis.model import SimpleTrellis2
 from waveforms.glfsr import PNSequence
 
 
@@ -31,15 +33,7 @@ if __name__ == "__main__":
     tau = np.linspace(0, length, num=length * sps)
     bit_array = np.unpackbits(DATA_BUFFER)
 
-    irig_waveforms = [
-        (
-            "PCM-FM",
-            PCMFMSymbolMapper(),
-            PCMFM_NUMER / PCMFM_DENOM,
-            freq_pulse_pcmfm(sps=sps, order=4),
-        ),
-    ]
-    mapper = PCMFMSymbolMapper()
+    mapper = TrellisEncoder(SimpleTrellis2)
     symbols = mapper(bit_array)
     mod_index = PCMFM_NUMER / PCMFM_DENOM
 
@@ -115,4 +109,4 @@ if __name__ == "__main__":
 
     fig.tight_layout()
     fig.savefig(Path(__file__).parent.parent / "images" / "pcmfm_bessel_comparison.png")
-    fig.show()
+    plt.show()
