@@ -30,7 +30,13 @@ def constellation(
         Figure of plotted constellation.
     """
     axis = axis or plt.subplots(1)[-1]
-    axis.plot(signal.real[:n], signal.imag[:n], color=color, alpha=0.7)
+    axis.plot(
+        signal.real[:n],
+        signal.imag[:n],
+        color=color,
+        alpha=0.2,
+        marker="o",
+    )
     axis.set_title("Constellation")
     axis.set_ylabel("Quadrature [V]")
     axis.set_xlabel("In-phase [V]")
