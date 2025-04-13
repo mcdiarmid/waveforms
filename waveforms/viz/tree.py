@@ -41,7 +41,7 @@ def pi_fraction_formatter(x: float, _pos: int) -> str:
     return label
 
 
-def phase_tree(  # noqa: PLR0913
+def plot_phase_tree(  # noqa: PLR0913
     signal: NDArray[np.complex128],
     sps: int,
     off: float | None = None,
@@ -138,7 +138,7 @@ def generate_cpm_phase_tree(
             length * sps - 1 : 2 * length * sps - 1
         ]
 
-    return phase_tree(
+    return plot_phase_tree(
         signal=plotted_signal,
         sps=sps,
         modulo=length,

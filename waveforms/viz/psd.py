@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 
-def power_spectral_density(
+def plot_power_spectral_density(
     signal: NDArray[np.complex128],
     sps: int,
     bps: int = 1,

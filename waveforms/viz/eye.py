@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 
-def eye_diagram(  # noqa: PLR0913
+def plot_eye_diagram(  # noqa: PLR0913
     time: NDArray[np.float64],
     signal: NDArray[np.complex64],
     sps: int = 8,

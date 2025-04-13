@@ -17,9 +17,11 @@ from waveforms.cpm.soqpsk import (
 from waveforms.cpm.trellis.encoder import TrellisEncoder
 from waveforms.cpm.trellis.model import SOQPSKTrellis4x2DiffEncoded
 from waveforms.glfsr import PNSequence
-from waveforms.viz import eye_diagram
-from waveforms.viz.constellation import constellation
-from waveforms.viz.tree import generate_cpm_phase_tree
+from waveforms.viz import (
+    generate_cpm_phase_tree,
+    plot_constellation,
+    plot_eye_diagram,
+)
 
 
 if TYPE_CHECKING:
@@ -76,7 +78,7 @@ if __name__ == "__main__":
         # modulated_signal[:] = modulated_signal * np.exp(-1j * np.pi / 4)
         signal_dict[label] = modulated_signal[:]
         normalized_time /= 2  # SOQPSK symbols are spaced at T/2
-        eye_diagram(
+        plot_eye_diagram(
             normalized_time[: normalized_time.size // 4],
             modulated_signal[: normalized_time.size // 4],
             sps=sps,
@@ -162,7 +164,7 @@ if __name__ == "__main__":
     qpsk_esque_signal = np.zeros_like(soqpsk_tg)
     qpsk_esque_signal[sps:] += soqpsk_tg.real[:-sps]
     qpsk_esque_signal[:] += soqpsk_tg.imag * 1j
-    constellation(
+    plot_constellation(
         signal=qpsk_esque_signal[sps :: sps * 2][1:],
         axis=constellation_ax,
     )
