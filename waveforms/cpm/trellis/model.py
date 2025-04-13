@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
+
 _logger = logging.getLogger(__name__)
 
 
@@ -20,7 +21,7 @@ class Trellis:
 
     @property
     def input_cardinality(self) -> int:
-        """Returns the input cardinality (number of unique input values).
+        """Returns the input cardinality (number of bits per input value).
 
         Args:
             None
@@ -28,7 +29,11 @@ class Trellis:
         Returns:
             int: Input Cardinality.
         """
-        return max([b.inp for col in self.branches for b in col])
+        unique_inputs = len({b.inp for col in self.branches for b in col})
+        if 1 << (unique_inputs.bit_length() - 1) != unique_inputs:
+            err = "Number of unique inputs should be multiple of 2."
+            raise ValueError(err)
+        return unique_inputs.bit_length() - 1
 
     @property
     def output_cardinality(self) -> int:
@@ -220,6 +225,69 @@ SOQPSKTrellis4x2 = Trellis(
             Branch(inp=1, out=+2, start=2, end=3),
             Branch(inp=0, out=-2, start=3, end=2),
             Branch(inp=1, out=0, start=3, end=3),
+        ],
+    ],
+)
+
+
+SOQPSKTrellis4x2DiffEncoded = Trellis(
+    branches=[
+        # Column 1 (n-even/I)
+        [
+            Branch(inp=0, out=0, start=0, end=0),
+            Branch(inp=1, out=+2, start=0, end=2),
+            Branch(inp=0, out=0, start=1, end=1),
+            Branch(inp=1, out=-2, start=1, end=3),
+            Branch(inp=1, out=-2, start=2, end=0),
+            Branch(inp=0, out=0, start=2, end=2),
+            Branch(inp=1, out=+2, start=3, end=1),
+            Branch(inp=0, out=0, start=3, end=3),
+        ],
+        # Column 2 (n-odd/Q)
+        [
+            Branch(inp=0, out=0, start=0, end=0),
+            Branch(inp=1, out=-2, start=0, end=1),
+            Branch(inp=1, out=+2, start=1, end=0),
+            Branch(inp=0, out=0, start=1, end=1),
+            Branch(inp=0, out=0, start=2, end=2),
+            Branch(inp=1, out=+2, start=2, end=3),
+            Branch(inp=1, out=-2, start=3, end=2),
+            Branch(inp=0, out=0, start=3, end=3),
+        ],
+    ],
+)
+
+# out = in * 2 - 1
+SimpleTrellis2 = Trellis(
+    branches=[
+        [
+            Branch(inp=0, out=-1, start=0, end=0),
+            Branch(inp=1, out=+1, start=0, end=1),
+            Branch(inp=0, out=-1, start=1, end=0),
+            Branch(inp=1, out=+1, start=1, end=1),
+        ],
+    ],
+)
+# out = in * 2 - 3
+SimpleTrellis4 = Trellis(
+    branches=[
+        [
+            Branch(inp=0, out=-3, start=0, end=0),
+            Branch(inp=1, out=-1, start=0, end=1),
+            Branch(inp=2, out=+1, start=0, end=2),
+            Branch(inp=3, out=+3, start=0, end=3),
+            Branch(inp=0, out=-3, start=1, end=0),
+            Branch(inp=1, out=-1, start=1, end=1),
+            Branch(inp=2, out=+1, start=1, end=2),
+            Branch(inp=3, out=+3, start=1, end=3),
+            Branch(inp=0, out=-3, start=2, end=0),
+            Branch(inp=1, out=-1, start=2, end=1),
+            Branch(inp=2, out=+1, start=2, end=2),
+            Branch(inp=3, out=+3, start=2, end=3),
+            Branch(inp=0, out=-3, start=3, end=0),
+            Branch(inp=1, out=-1, start=3, end=1),
+            Branch(inp=2, out=+1, start=3, end=2),
+            Branch(inp=3, out=+3, start=3, end=3),
         ],
     ],
 )

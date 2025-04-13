@@ -3,6 +3,7 @@ from numpy.typing import NDArray
 
 from waveforms.cpm.helpers import normalize_cpm_filter
 
+
 MULTIH_IRIG_NUMER = np.array([4, 5])
 MULTIH_IRIG_DENOM = 16
 

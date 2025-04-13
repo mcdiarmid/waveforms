@@ -15,5 +15,5 @@ def normalize_cpm_filter(
     Returns:
         NDArray[np.float64]: Original filter g multiplied by a nomalizing factyor
     """
-    a_scalar = sps / (np.cumsum(g)[-1] * 2)
+    a_scalar = sps / (np.sum(g) * 2)
     return a_scalar * g

@@ -8,19 +8,17 @@ from scipy.signal import besselap, impulse
 
 from waveforms.cpm.helpers import normalize_cpm_filter
 from waveforms.cpm.modulate import cpm_modulate
-from waveforms.cpm.pcmfm import (
-    PCMFM_DENOM,
-    PCMFM_NUMER,
-    PCMFMSymbolMapper,
-    freq_pulse_pcmfm,
-)
+from waveforms.cpm.pcmfm import PCMFM_DENOM, PCMFM_NUMER
+from waveforms.cpm.trellis.encoder import TrellisEncoder
+from waveforms.cpm.trellis.model import SimpleTrellis2
+from waveforms.glfsr import PNSequence
+
 
 rng = np.random.Generator(np.random.PCG64())
 
-DATA_HEADER = b"\x1b\x1bHello World!"
-DATA_EXTRA = bytes(rng.integers(0, 0xFF, size=4000, endpoint=True, dtype=np.uint8))
-DATA_BUFFER = DATA_HEADER + DATA_EXTRA
-j = complex(0, 1)
+PN_DEGREE = 15
+DATA_GEN = PNSequence(PN_DEGREE)
+DATA_BUFFER = np.packbits(DATA_GEN.generate_sequence())
 
 
 if __name__ == "__main__":
@@ -28,17 +26,9 @@ if __name__ == "__main__":
     fft_size = 2**10
     length = 3
     tau = np.linspace(0, length, num=length * sps)
-    bit_array = np.unpackbits(np.frombuffer(DATA_BUFFER, dtype=np.uint8))
+    bit_array = np.unpackbits(DATA_BUFFER)
 
-    irig_waveforms = [
-        (
-            "PCM-FM",
-            PCMFMSymbolMapper(),
-            PCMFM_NUMER / PCMFM_DENOM,
-            freq_pulse_pcmfm(sps=sps, order=4),
-        ),
-    ]
-    mapper = PCMFMSymbolMapper()
+    mapper = TrellisEncoder(SimpleTrellis2)
     symbols = mapper(bit_array)
     mod_index = PCMFM_NUMER / PCMFM_DENOM
 
@@ -114,4 +104,4 @@ if __name__ == "__main__":
 
     fig.tight_layout()
     fig.savefig(Path(__file__).parent.parent / "images" / "pcmfm_bessel_comparison.png")
-    fig.show()
+    plt.show()

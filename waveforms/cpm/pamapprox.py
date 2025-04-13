@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from functools import reduce
 from typing import TYPE_CHECKING
 
 import numpy as np
+
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -22,10 +22,30 @@ def pam_unit_pulse(
     Returns:
         NDArray[np.float64]: PAM unit pulse
     """
-    response = np.zeros(phase_pulse.size * 2 - 1, dtype=np.float64)
+    response = np.zeros(phase_pulse.size * 2 + 1, dtype=np.float64)
     pih = mod_index * np.pi
     response[1 : phase_pulse.size + 1] = np.sin(2 * pih * phase_pulse) / np.sin(pih)
-    response[phase_pulse.size - 1 :] = np.sin(pih - 2 * pih * phase_pulse) / np.sin(pih)
+    response[phase_pulse.size + 1 :] = np.sin(pih - 2 * pih * phase_pulse) / np.sin(pih)
+    return response
+
+
+def pam_unit_pulse2(
+    phase_pulse: NDArray[np.float64],
+    mod_index: float,
+) -> NDArray[np.float64]:
+    """Generates a PAM unit pulse for a given phase pulse and modulation index.
+
+    Args:
+        phase_pulse (NDArray[np.float64]): Phase impulse response filter
+        mod_index (float): Modulation index
+
+    Returns:
+        NDArray[np.float64]: PAM unit pulse
+    """
+    response = np.zeros(phase_pulse.size * 2 - 1, dtype=np.float64)
+    pih = mod_index * np.pi
+    response[: phase_pulse.size] = np.sin(2 * pih * phase_pulse) / np.sin(pih)
+    response[phase_pulse.size :] = np.sin(pih - 2 * pih * phase_pulse[1:]) / np.sin(pih)
     return response
 
 
@@ -57,7 +77,7 @@ def rho_pulses(
     )
     b_matrix = np.linspace(0, length, num=length + 1, dtype=np.uint8)
     c_array = np.linspace(1, length + 1, num=length + 1)
-    u = pam_unit_pulse(np.cumsum(pulse_filter) / sps, mod_index)
+    u = pam_unit_pulse2(np.cumsum(pulse_filter) / sps, mod_index)
 
     # Calculate rho_0 and rho_1 - equation 3.21
     rho: list[NDArray[np.float64]] = []
@@ -75,7 +95,7 @@ def rho_pulses(
             ],
             dtype=np.float64,
         )
-        rho_k: NDArray[np.float64] = (c_array[k] * reduce(np.multiply, time_shifted_u))[
+        rho_k: NDArray[np.float64] = (c_array[k] * np.prod(time_shifted_u, axis=0))[
             a_matrix[k, -1] * sps : -length * sps
         ]
         rho.append(rho_k)

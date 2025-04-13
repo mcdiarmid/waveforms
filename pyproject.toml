@@ -1,13 +1,8 @@
-[build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "waveforms"
 authors = [
     {name = "Campbell McDiarmid", email = "campbell.mcdiarmid@icloud.com"}
 ]
-
 description = "Simulation tools for modulating and demodulating data using various waveform definitions."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -17,25 +12,34 @@ classifiers = [
     "Natural Language :: English",
     "Programming Language :: Python :: 3",
 ]
+version = "0.1.0"
 dependencies = [
     "numpy",
     "scipy",
-    "matplotlib",
 ]
-version = "0.1.0"
+
+[dependency-groups]
+dev = [
+    "ruff == 0.7",
+    "pytest == 8.3.3",
+]
 
 [project.optional-dependencies]
-dev = [
-    "ruff",
-    "black",
-    "pytest",
+viz = [
+    "numpy",
+    "PySide6",
+    "matplotlib",
+    "pyqtgraph",
+]
+all = [
+    "waveforms[viz]"
 ]
 
 [tool.setuptools.packages.find]
 include = ["waveforms*"]
 
-[tool.black]
-line-length = 100
+[tool.uv]
+package = true
 
 [tool.ruff]
 line-length = 100
@@ -48,7 +52,9 @@ select = [  # See https://docs.astral.sh/ruff/rules/
     "ALL"
 ]
 ignore = [
-    "D100", "D101", "D107", "ANN101"
+    "D100", "D101", "D107", "ANN101",
+    "RUF200",  # relative sub-project path not supported in any PEP
+    "ISC001", "COM812", # Conflicts with formatter
 ]
 
 [tool.ruff.format]
@@ -56,9 +62,13 @@ quote-style = "double"
 indent-style = "space"
 line-ending = "auto"
 
+[tool.ruff.lint.isort]
+lines-after-imports = 2
+
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["E402", "F403", "F401", "D104"]
+"tests/*.py" = ["S101"]
+"examples/*.py" = ["ERA001"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
-

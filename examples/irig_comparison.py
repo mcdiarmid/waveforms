@@ -10,28 +10,32 @@ from waveforms.cpm.modulate import cpm_modulate
 from waveforms.cpm.multih import (
     MULTIH_IRIG_DENOM,
     MULTIH_IRIG_NUMER,
-    MultiHSymbolMapper,
     freq_pulse_multih_irig,
 )
 from waveforms.cpm.pcmfm import (
     PCMFM_DENOM,
     PCMFM_NUMER,
-    PCMFMSymbolMapper,
     freq_pulse_pcmfm,
 )
 from waveforms.cpm.soqpsk import (
     SOQPSK_DENOM,
     SOQPSK_NUMER,
-    SOQPSKPrecoder,
     freq_pulse_soqpsk_tg,
 )
+from waveforms.cpm.trellis.encoder import TrellisEncoder
+from waveforms.cpm.trellis.model import (
+    SimpleTrellis2,
+    SimpleTrellis4,
+    SOQPSKTrellis4x2DiffEncoded,
+)
+from waveforms.glfsr import PNSequence
+
 
 rng = np.random.Generator(np.random.PCG64())
 
-DATA_HEADER = b"\x1b\x1bHello World!"
-DATA_EXTRA = bytes(rng.integers(0, 0xFF, size=4000, endpoint=True, dtype=np.uint8))
-DATA_BUFFER = DATA_HEADER + DATA_EXTRA
-j = complex(0, 1)
+PN_DEGREE = 15
+DATA_GEN = PNSequence(PN_DEGREE)
+DATA_BUFFER = np.packbits(DATA_GEN.generate_sequence())
 
 
 if __name__ == "__main__":
@@ -46,21 +50,21 @@ if __name__ == "__main__":
     irig_waveforms = [
         (
             "PCM-FM",
-            PCMFMSymbolMapper(),
+            TrellisEncoder(SimpleTrellis2),
             PCMFM_NUMER / PCMFM_DENOM,
             freq_pulse_pcmfm(sps=sps, order=6),
             1,
         ),
         (
             "SOQPSK-TG",
-            SOQPSKPrecoder(),
+            TrellisEncoder(SOQPSKTrellis4x2DiffEncoded),
             SOQPSK_NUMER / SOQPSK_DENOM,
             freq_pulse_soqpsk_tg(sps=sps),
             1,
         ),
         (
             "Multi-h CPM",
-            MultiHSymbolMapper(),
+            TrellisEncoder(SimpleTrellis4),
             MULTIH_IRIG_NUMER / MULTIH_IRIG_DENOM,
             freq_pulse_multih_irig(sps=sps),
             2,
@@ -152,4 +156,4 @@ if __name__ == "__main__":
 
     fig_psd.tight_layout()
     fig_psd.savefig(Path(__file__).parent.parent / "images" / "irig106_waveform_comparison.png")
-    fig_psd.show()
+    plt.show()

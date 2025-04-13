@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 
+
 if TYPE_CHECKING:
     import numpy as np
     from matplotlib.axes import Axes
@@ -11,14 +12,14 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 
-def eye_diagram(  # noqa: PLR0913
+def plot_eye_diagram(  # noqa: PLR0913
     time: NDArray[np.float64],
-    signal: NDArray[np.float64],
+    signal: NDArray[np.complex64],
     sps: int = 8,
     modulo: int = 4,
-    *,
+    t_offset: float = 0,
     color: str | None = None,
-    eye_ax: tuple[Axes, Axes] | None = None,
+    axes: tuple[Axes, Axes] | None = None,
 ) -> Figure:
     """Plots an eye diagram of the provided signal.
 
@@ -27,27 +28,30 @@ def eye_diagram(  # noqa: PLR0913
         signal: Array of modulated signal samples
         sps: Samples per symbol
         modulo: Eye diagram t_max
+        t_offset: Offset for t
         color: Color of the eye diagram
-        eye_ax: Axes if a new figure is not desired
+        axes: Axes if a new figure is not desired
 
     Returns:
         Plotted figure
     """
-    real_ax, imag_ax = eye_ax or plt.subplots(2)[-1]
+    real_ax, imag_ax = axes or plt.subplots(2)[-1]
 
     for i in range((time.size - 1) // (sps * modulo)):
         idx_start = i * sps * modulo
         real_ax.plot(
-            (time[idx_start : idx_start + sps * modulo + 1] - time[idx_start]),
+            (time[idx_start : idx_start + sps * modulo + 1] - time[idx_start]) + t_offset,
             signal.real[idx_start : idx_start + sps * modulo + 1],
             linewidth=0.3,
             color=color,
+            alpha=0.7,
         )
         imag_ax.plot(
-            (time[idx_start : idx_start + sps * modulo + 1] - time[idx_start]),
+            (time[idx_start : idx_start + sps * modulo + 1] - time[idx_start]) + t_offset,
             signal.imag[idx_start : idx_start + sps * modulo + 1],
             linewidth=0.3,
             color=color,
+            alpha=0.7,
         )
 
     # Format Eye diagrams

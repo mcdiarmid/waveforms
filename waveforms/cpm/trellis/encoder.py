@@ -15,7 +15,7 @@ class TrellisEncoder:
         ]
 
     def encode(self, bits: NDArray[np.uint8]) -> NDArray[np.int8]:
-        """Encodes a sequence of input bits to ternary symbols.
+        """Encodes a sequence of input bits to symbols.
 
         This assumes inputs are either 0 or 1.
 
@@ -23,7 +23,7 @@ class TrellisEncoder:
             bits (NDArray[np.uint8]): Input bit sequence
 
         Returns:
-            NDArray[np.int8]: Ternary symbols
+            NDArray[np.int8]: Symbols
         """
         if bits.size % self.input_cardinality:
             msg = "Input length must be a multiple of FSM cardinality."
@@ -54,6 +54,6 @@ class TrellisEncoder:
             bits (NDArray[np.uint8]): Input bit sequence
 
         Returns:
-            NDArray[np.int8]: Ternary symbols
+            NDArray[np.int8]: Symbols
         """
         return self.encode(bits)

@@ -4,11 +4,9 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+
 if TYPE_CHECKING:
     from numpy.typing import NDArray
-
-
-j = complex(0, 1)
 
 
 def phase_modulate(
@@ -24,7 +22,7 @@ def phase_modulate(
     Returns:
         NDArray[np.float64]: Phase modulated signal.
     """
-    return np.exp(j * sensitivity * phase)
+    return np.exp(1j * sensitivity * phase)
 
 
 def frequency_modulate(
@@ -53,7 +51,7 @@ def frequency_modulate(
     for i, sample in enumerate(freq_pulses):
         revs = (revs + sample) % sps
         phase_array[i] = revs * sensitivity + initial_phase
-    return np.exp(j * phase_array)
+    return np.exp(1j * phase_array)
 
 
 def cpm_modulate(
@@ -61,7 +59,7 @@ def cpm_modulate(
     mod_index: float | NDArray[np.float64],
     pulse_filter: NDArray[np.float64],
     sps: int = 8,
-) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+) -> tuple[NDArray[np.float64], NDArray[np.complex128]]:
     """Generic CPM Modulation.
 
     Args:
@@ -80,8 +78,14 @@ def cpm_modulate(
         mod_index = np.array(mod_index, dtype=np.float64)
 
     # Normalized time array
-    num_points = (symbols.size + 1) * sps + 1
-    normalized_time = np.linspace(0, symbols.size + 1, num=num_points, dtype=np.float64)
+    num_points = (symbols.size + 1) * sps
+    normalized_time = np.linspace(
+        0,
+        symbols.size + 1,
+        num=num_points,
+        dtype=np.float64,
+        endpoint=False,
+    )
 
     # Create an array of alternating mod indicies
     ith_mod_index = np.array(range(symbols.size)) % mod_index.size

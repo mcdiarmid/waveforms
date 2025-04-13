@@ -7,7 +7,6 @@ from matplotlib.axes import Axes
 from matplotlib.ticker import MultipleLocator
 from numpy.typing import NDArray
 
-from waveforms.cpm.helpers import normalize_cpm_filter
 from waveforms.cpm.modulate import cpm_modulate
 from waveforms.cpm.pamapprox import rho_pulses
 from waveforms.cpm.soqpsk import (
@@ -16,18 +15,19 @@ from waveforms.cpm.soqpsk import (
 )
 from waveforms.cpm.trellis.encoder import TrellisEncoder
 from waveforms.cpm.trellis.model import (
-    SOQPSKTrellis4x2,
+    SOQPSKTrellis4x2DiffEncoded,
 )
+from waveforms.glfsr import PNSequence
+from waveforms.noise import generate_complex_awgn
 from waveforms.viterbi.algorithm import SOQPSKTrellisDetector
+
 
 # Set seeds so iterations on implementation can be compared better
 rng = np.random.Generator(np.random.PCG64(seed=1))
 
-DATA_HEADER = b"\x00\x1b\x1b\x00Hello World!"
-DATA_EXTRA = bytes(rng.integers(0, 0xFF, size=4000, endpoint=True, dtype=np.uint8))
-DATA_BUFFER = DATA_HEADER + DATA_EXTRA
-j = complex(0, 1)
-
+PN_DEGREE = 15
+DATA_GEN = PNSequence(PN_DEGREE)
+DATA_BUFFER = np.packbits(DATA_GEN.generate_sequence())
 
 _logger = logging.getLogger(__name__)
 
@@ -35,16 +35,17 @@ _logger = logging.getLogger(__name__)
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     # Constants
-    sps = 20
+    sps = 10
     fft_size = 2**9
     pulse_pad = 0.5
+    sigma = np.sqrt(2) / 2
     P = 4
 
     # Bits of information to transmit
-    bit_array = np.unpackbits(np.frombuffer(DATA_BUFFER, dtype=np.uint8))
+    bit_array = np.unpackbits(DATA_BUFFER)
 
     # Convert bits to symbols
-    symbol_precoder = TrellisEncoder(SOQPSKTrellis4x2)
+    symbol_precoder = TrellisEncoder(SOQPSKTrellis4x2DiffEncoded)
     symbols = symbol_precoder(bit_array)
 
     # Create plots and axes
@@ -55,8 +56,8 @@ if __name__ == "__main__":
     # Generate pseudo-symbols
     pseudo_symbols = np.array(
         [
-            [-j, 1, j],
-            [np.sqrt(2) / 2 * (1 - j), np.sqrt(2) / 2, np.sqrt(2) / 2 * (1 + j)],
+            [-1j, 1, 1j],
+            [np.sqrt(2) / 2 * (1 - 1j), np.sqrt(2) / 2, np.sqrt(2) / 2 * (1 + 1j)],
         ],
         dtype=np.complex128,
     )
@@ -80,16 +81,8 @@ if __name__ == "__main__":
             pulse_filter=pulse_filter,
             sps=sps,
         )
-        noise = (
-            rng.normal(
-                loc=0,
-                scale=1.25 * np.sqrt(2) / 2,
-                size=(modulated_signal.size, 2),
-            )
-            .view(np.complex128)
-            .flatten()
-        )
-        modulated_signal *= np.exp(-j * 1 * np.pi / 4)
+        noise = generate_complex_awgn(sigma, modulated_signal.size, rng)
+        modulated_signal[:] *= np.exp(-1j * np.pi / 4)
         freq_pulses = np.angle(modulated_signal[1:] * modulated_signal.conj()[:-1]) * sps / np.pi
 
         # Received signal
@@ -104,7 +97,7 @@ if __name__ == "__main__":
 
         pulse_ax = iq_ax.twinx()
         pulse_ax.stem(
-            normalized_time[::sps][1:-1],
+            normalized_time[sps::sps],
             symbols / 2,
             markerfmt="ko",
             linefmt="k-",
@@ -136,39 +129,29 @@ if __name__ == "__main__":
             scale_by_freq=False,
         )
 
-        # Spectrum Analyzer style Eb/N0 measurement
-        marker1 = 10 * np.log10(pxx_specan[fft_size // 2])
-        marker2 = 10 * np.log10(pxx_specan[-1])
-        rbw = sps / fft_size
-
-        # Spec-an method of inferring Eb/N0
-        c0n0 = marker1 - 10 * np.log10(rbw)
-        n0 = marker2 - 10 * np.log10(rbw)
-        c0 = 10 * np.log10(np.power(10, c0n0 / 10) - np.power(10, n0 / 10))
-        ebn0 = c0 - 2.95 - n0  # This 2.95 is a ratio of peak C0 to average C0 for SOQPSK.
+        ebn0_calc = 10 * np.log10(sps / (2 * sigma**2))
 
         # Pulse Truncation Filters
         L = int(pulse_filter.size / sps)
         truncation = 1
-        truncated_freq_pulse = pulse_filter[
-            int((L - truncation) * sps / 2) : int((L + truncation) * sps / 2) + 1
-        ]
-        truncated_freq_pulse = normalize_cpm_filter(sps=sps, g=truncated_freq_pulse)
-        truncated_phase_pulse = np.cumsum(truncated_freq_pulse) / sps
+        q = np.cumsum(pulse_filter) / sps
+        pt_start = int((L - truncation) * sps / 2)
+        pt_end = int((L + truncation) * sps / 2) + 1
+        truncated_phase_pulse = q[pt_start:pt_end]
         mf_outputs_pt = np.zeros((3, received_signal.size), dtype=np.complex128)
         mf_outputs_pt[0, :] = np.convolve(
             received_signal,
-            np.exp(-j * 2 * np.pi * mod_index * -2 * truncated_phase_pulse),
+            np.exp(-2j * np.pi * mod_index * -2 * truncated_phase_pulse),
             mode="same",
         )
         mf_outputs_pt[1, :] = np.convolve(
             received_signal,
-            np.exp(-j * 2 * np.pi * mod_index * 0 * truncated_phase_pulse),
+            np.exp(-2j * np.pi * mod_index * +0 * truncated_phase_pulse),
             mode="same",
         )
         mf_outputs_pt[2, :] = np.convolve(
             received_signal,
-            np.exp(-j * 2 * np.pi * mod_index * +2 * truncated_phase_pulse),
+            np.exp(-2j * np.pi * mod_index * +2 * truncated_phase_pulse),
             mode="same",
         )
 
@@ -192,16 +175,16 @@ if __name__ == "__main__":
         # Initialize FSM
         # WIP - ATTEMPTS TO DO A VA TRACEBACK ON EACH SYMBOL
         for mf_outputs, detector_type in zip((mf_outputs_pt, mf_outputs_pam), ("PT", "PAM")):
-            det = SOQPSKTrellisDetector(length=2)
+            det = SOQPSKTrellisDetector(length=2, differantial_encoding=True)
             output_symbols = []
             output_bits = []
             delay = 0
 
             # Should replace magic numbers.  Ideally this gets solved with timing recovery.
             if detector_type == "PT":
-                timing_offset = 0 if label == "TG" else -2
+                timing_offset = -1 if label == "TG" else -1
             else:
-                timing_offset = -2 if label == "TG" else -4
+                timing_offset = 0 if label == "TG" else -3
 
             for n in range(received_signal.size - det.length * sps):
                 # Placeholder timing recovery, will replace with Non-data-aided method
@@ -216,20 +199,24 @@ if __name__ == "__main__":
 
             # Calculate number of errors, and visualize
             iter_va_output_symbols = np.array(output_symbols[det.length :], dtype=np.int8)
-            iter_va_output_bits = np.array(output_bits, dtype=np.uint8)
+            iter_va_output_bits = np.array(output_bits[det.length :], dtype=np.uint8)
             aligned_symbols = symbols[delay:]
             min_size = min(aligned_symbols.size, iter_va_output_symbols.size)
             t = np.linspace(0, min_size - 1, num=min_size)
-            (error_idx,) = np.where(iter_va_output_symbols[:min_size] - aligned_symbols[:min_size])
+            (sym_err_idx,) = np.where(
+                iter_va_output_symbols[:min_size] - aligned_symbols[:min_size]
+            )
+            (bit_err_idx,) = np.where(iter_va_output_bits[:min_size] - bit_array[:min_size])
             log_msg = (
                 f"SOQPSK-{label} {detector_type}: "
-                f"EbN0 = {ebn0:.2f} dB, "
-                f"SER = {len(error_idx)/min_size:.3E}"
+                f"Eb/N0 = {ebn0_calc:.2f} dB, "
+                f"SER = {len(sym_err_idx)/min_size:.3E} "
+                f"BER = {len(bit_err_idx)/min_size:.3E}"
             )
             _logger.info(log_msg)
             errors_ax.plot(
-                t[error_idx],
-                np.cumsum(np.ones(error_idx.shape)),
+                t[bit_err_idx],
+                np.cumsum(np.ones(bit_err_idx.shape)),
                 marker="x",
                 label=detector_type,
             )
@@ -248,7 +235,7 @@ if __name__ == "__main__":
 
     for ax in iq_axes[0, :]:
         ax: Axes
-        ax.set_xlim([10, 30])
+        ax.set_xlim([100, 130])
         ax.legend(loc="upper center", fontsize=8, ncols=4)
         ax.xaxis.set_major_locator(MultipleLocator(5))
         ax.xaxis.set_minor_locator(MultipleLocator(1))
@@ -270,7 +257,7 @@ if __name__ == "__main__":
 
     for ax in iq_axes[3, :]:
         ax.grid(which="both", linestyle=":")
-        ax.set_ylabel("Cumulative Symbol Errors")
+        ax.set_ylabel("Cumulative Bit Errors")
         ax.set_xlabel("Symbol Time [nT]")
         ax.set_ylim(0, None)
         ax.set_xlim(0, symbols.size - 1)
@@ -278,4 +265,4 @@ if __name__ == "__main__":
 
     fig_eye.tight_layout()
     fig_eye.savefig(Path(__file__).parent.parent / "images" / "soqpsk_pam.png")
-    fig_eye.show()
+    plt.show()
