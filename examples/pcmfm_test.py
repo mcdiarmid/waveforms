@@ -8,12 +8,7 @@ from scipy.signal import besselap, impulse
 
 from waveforms.cpm.helpers import normalize_cpm_filter
 from waveforms.cpm.modulate import cpm_modulate
-from waveforms.cpm.pcmfm import (
-    PCMFM_DENOM,
-    PCMFM_NUMER,
-    PCMFMSymbolMapper,
-    freq_pulse_pcmfm,
-)
+from waveforms.cpm.pcmfm import PCMFM_DENOM, PCMFM_NUMER
 from waveforms.cpm.trellis.encoder import TrellisEncoder
 from waveforms.cpm.trellis.model import SimpleTrellis2
 from waveforms.glfsr import PNSequence

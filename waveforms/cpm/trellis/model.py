@@ -257,6 +257,7 @@ SOQPSKTrellis4x2DiffEncoded = Trellis(
     ],
 )
 
+# out = in * 2 - 1
 SimpleTrellis2 = Trellis(
     branches=[
         [
@@ -267,6 +268,7 @@ SimpleTrellis2 = Trellis(
         ],
     ],
 )
+# out = in * 2 - 3
 SimpleTrellis4 = Trellis(
     branches=[
         [
@@ -274,17 +276,14 @@ SimpleTrellis4 = Trellis(
             Branch(inp=1, out=-1, start=0, end=1),
             Branch(inp=2, out=+1, start=0, end=2),
             Branch(inp=3, out=+3, start=0, end=3),
-
             Branch(inp=0, out=-3, start=1, end=0),
             Branch(inp=1, out=-1, start=1, end=1),
             Branch(inp=2, out=+1, start=1, end=2),
             Branch(inp=3, out=+3, start=1, end=3),
-
             Branch(inp=0, out=-3, start=2, end=0),
             Branch(inp=1, out=-1, start=2, end=1),
             Branch(inp=2, out=+1, start=2, end=2),
             Branch(inp=3, out=+3, start=2, end=3),
-
             Branch(inp=0, out=-3, start=3, end=0),
             Branch(inp=1, out=-1, start=3, end=1),
             Branch(inp=2, out=+1, start=3, end=2),
