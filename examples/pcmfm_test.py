@@ -8,7 +8,11 @@ from scipy.signal import besselap, impulse
 
 from waveforms.cpm.helpers import normalize_cpm_filter
 from waveforms.cpm.modulate import cpm_modulate
-from waveforms.cpm.pcmfm import PCMFM_DENOM, PCMFM_NUMER
+from waveforms.cpm.pcmfm import (
+    PCMFM_DENOM,
+    PCMFM_NUMER,
+    freq_pulse_pcmfm,
+)
 from waveforms.cpm.trellis.encoder import TrellisEncoder
 from waveforms.cpm.trellis.model import SimpleTrellis2
 from waveforms.glfsr import PNSequence
@@ -42,12 +46,7 @@ if __name__ == "__main__":
         ["-", "--", "-", "--", "-."],
         [3, 3, 2, 2, 2],
     ):
-        t, y = impulse(
-            besselap(order, norm="mag"),
-            T=np.linspace(0, length * 2 / 0.7, num=(length - 1) * sps + 1),
-        )
-        freq_pulse = normalize_cpm_filter(sps, np.convolve(y, np.ones(sps)))
-
+        freq_pulse = freq_pulse_pcmfm(sps, order)
         normalized_time, modulated_signal = cpm_modulate(
             symbols=symbols,
             mod_index=mod_index,
