@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.ticker import MultipleLocator
-from scipy.signal import besselap, impulse
 
 from waveforms.cpm.helpers import normalize_cpm_filter
 from waveforms.cpm.modulate import cpm_modulate

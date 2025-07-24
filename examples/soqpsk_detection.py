@@ -172,7 +172,7 @@ if __name__ == "__main__":
                     mode="same",
                 ) * np.conj(pseudo_symbols[k, sym_idx])
             sym = 2 * (sym_idx - 1)
-            line, = mf_ax.plot(
+            (line,) = mf_ax.plot(
                 normalized_time,
                 mf_outputs_pam[sym_idx, :].real,
                 label=f"MF Re[{sym:+}]",
@@ -215,8 +215,8 @@ if __name__ == "__main__":
             # Calculate number of errors, and visualize
             iter_va_output_symbols = np.array(output_symbols[det.length :], dtype=np.int8)
             iter_va_output_bits = np.array(output_bits[det.length :], dtype=np.uint8)
-            aligned_symbols = symbols[delay+va_delay:]
-            aligned_bits = bit_array[delay+va_delay:]
+            aligned_symbols = symbols[delay + va_delay :]
+            aligned_bits = bit_array[delay + va_delay :]
             min_size = min(aligned_symbols.size, iter_va_output_symbols.size)
             t = np.linspace(0, min_size - 1, num=min_size)
             (sym_err_idx,) = np.where(
