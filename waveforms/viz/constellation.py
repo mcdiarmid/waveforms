@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 
-def constellation(
+def plot_constellation(
     signal: NDArray[np.complex128],
     n: int = 1024,
     color: str | None = None,

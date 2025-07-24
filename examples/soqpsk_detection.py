@@ -25,7 +25,7 @@ from waveforms.viterbi.algorithm import SOQPSKTrellisDetector
 # Set seeds so iterations on implementation can be compared better
 rng = np.random.Generator(np.random.PCG64(seed=1))
 
-PN_DEGREE = 15
+PN_DEGREE = 17
 DATA_GEN = PNSequence(PN_DEGREE)
 DATA_BUFFER = np.packbits(DATA_GEN.generate_sequence())
 
@@ -38,7 +38,8 @@ if __name__ == "__main__":
     sps = 10
     fft_size = 2**9
     pulse_pad = 0.5
-    sigma = np.sqrt(2) / 2
+    ebn0 = 11.2  # Quasonix RDMS has a 1e-5 BER for SOQPSK-TG @ Eb/N0 = 11.2 dB
+    sigma = np.sqrt(sps / np.power(10, ebn0 / 10) / 2)
     P = 4
 
     # Bits of information to transmit
@@ -49,7 +50,7 @@ if __name__ == "__main__":
     symbols = symbol_precoder(bit_array)
 
     # Create plots and axes
-    fig_eye, iq_axes = plt.subplots(4, 2, figsize=(12, 10), dpi=100)
+    fig_eye, iq_axes = plt.subplots(5, 2, figsize=(12, 12), dpi=100)
     for ax in iq_axes.flatten():
         ax.grid(which="both", linestyle=":")
 
@@ -70,9 +71,10 @@ if __name__ == "__main__":
     for i, (pulse_filter, label, mod_index) in enumerate(pulses_colors_labels):
         # Assign axes
         iq_ax: Axes = iq_axes[0, i]
-        psd_ax: Axes = iq_axes[1, i]
-        rho_ax: Axes = iq_axes[2, i]
-        errors_ax: Axes = iq_axes[3, i]
+        mf_ax: Axes = iq_axes[1, i]
+        psd_ax: Axes = iq_axes[2, i]
+        rho_ax: Axes = iq_axes[3, i]
+        errors_ax: Axes = iq_axes[4, i]
 
         # Modulate the input symbols
         normalized_time, modulated_signal = cpm_modulate(
@@ -82,8 +84,8 @@ if __name__ == "__main__":
             sps=sps,
         )
         noise = generate_complex_awgn(sigma, modulated_signal.size, rng)
-        modulated_signal[:] *= np.exp(-1j * np.pi / 4)
-        freq_pulses = np.angle(modulated_signal[1:] * modulated_signal.conj()[:-1]) * sps / np.pi
+        modulated_signal[:] *= np.exp(+3j * np.pi / 4)
+        freq_pulses = np.angle(modulated_signal[1:] * modulated_signal.conj()[1:]) * sps / np.pi
 
         # Received signal
         unfiltered_signal: NDArray[np.complex128] = modulated_signal + noise
@@ -129,8 +131,6 @@ if __name__ == "__main__":
             scale_by_freq=False,
         )
 
-        ebn0_calc = 10 * np.log10(sps / (2 * sigma**2))
-
         # Pulse Truncation Filters
         L = int(pulse_filter.size / sps)
         truncation = 1
@@ -171,11 +171,26 @@ if __name__ == "__main__":
                     rk,
                     mode="same",
                 ) * np.conj(pseudo_symbols[k, sym_idx])
+            sym = 2 * (sym_idx - 1)
+            line, = mf_ax.plot(
+                normalized_time,
+                mf_outputs_pam[sym_idx, :].real,
+                label=f"MF Re[{sym:+}]",
+                linestyle="-",
+            )
+            mf_ax.plot(
+                normalized_time,
+                mf_outputs_pam[sym_idx, :].imag,
+                label=f"MF Im[{sym:+}]",
+                color=line.get_color(),
+                linestyle="--",
+            )
 
         # Initialize FSM
         # WIP - ATTEMPTS TO DO A VA TRACEBACK ON EACH SYMBOL
+        va_delay = 2
         for mf_outputs, detector_type in zip((mf_outputs_pt, mf_outputs_pam), ("PT", "PAM")):
-            det = SOQPSKTrellisDetector(length=2, differantial_encoding=True)
+            det = SOQPSKTrellisDetector(length=4, differantial_encoding=True)
             output_symbols = []
             output_bits = []
             delay = 0
@@ -194,22 +209,23 @@ if __name__ == "__main__":
                 # Perform Fixed Length VA Traceback
                 sym_idx = int((n + timing_offset) / sps)
                 rbits, rsyms = det.iteration(mf_outputs[:, n])
-                output_symbols.append(rsyms[0])
-                output_bits.append(rbits[0])
+                output_symbols.append(rsyms[va_delay])
+                output_bits.append(rbits[va_delay])
 
             # Calculate number of errors, and visualize
             iter_va_output_symbols = np.array(output_symbols[det.length :], dtype=np.int8)
             iter_va_output_bits = np.array(output_bits[det.length :], dtype=np.uint8)
-            aligned_symbols = symbols[delay:]
+            aligned_symbols = symbols[delay+va_delay:]
+            aligned_bits = bit_array[delay+va_delay:]
             min_size = min(aligned_symbols.size, iter_va_output_symbols.size)
             t = np.linspace(0, min_size - 1, num=min_size)
             (sym_err_idx,) = np.where(
                 iter_va_output_symbols[:min_size] - aligned_symbols[:min_size]
             )
-            (bit_err_idx,) = np.where(iter_va_output_bits[:min_size] - bit_array[:min_size])
+            (bit_err_idx,) = np.where(iter_va_output_bits[:min_size] - aligned_bits[:min_size])
             log_msg = (
                 f"SOQPSK-{label} {detector_type}: "
-                f"Eb/N0 = {ebn0_calc:.2f} dB, "
+                f"Eb/N0 = {ebn0:.2f} dB, "
                 f"SER = {len(sym_err_idx)/min_size:.3E} "
                 f"BER = {len(bit_err_idx)/min_size:.3E}"
             )
@@ -235,12 +251,20 @@ if __name__ == "__main__":
 
     for ax in iq_axes[0, :]:
         ax: Axes
+        ax.grid(which="both", linestyle=":")
         ax.set_xlim([100, 130])
         ax.legend(loc="upper center", fontsize=8, ncols=4)
         ax.xaxis.set_major_locator(MultipleLocator(5))
         ax.xaxis.set_minor_locator(MultipleLocator(1))
 
-    for psd_ax in iq_axes[1, :]:
+    for ax in iq_axes[1, :]:
+        ax: Axes
+        ax.set_xlim([100, 130])
+        ax.legend(loc="upper center", fontsize=8, ncols=3)
+        ax.xaxis.set_major_locator(MultipleLocator(5))
+        ax.xaxis.set_minor_locator(MultipleLocator(1))
+
+    for psd_ax in iq_axes[2, :]:
         psd_ax.set_title("Power Spectral Density")
         psd_ax.set_ylabel("Amplitude [dBc]")
         psd_ax.set_xlabel("Normalized Frequency [$T_b$ = 1]")
@@ -251,11 +275,11 @@ if __name__ == "__main__":
         psd_ax.xaxis.set_major_locator(MultipleLocator(0.5))
         psd_ax.grid(which="both", linestyle=":")
 
-    for rho_ax in iq_axes[2, :]:
+    for rho_ax in iq_axes[3, :]:
         rho_ax.grid(which="both", linestyle=":")
         rho_ax.legend()
 
-    for ax in iq_axes[3, :]:
+    for ax in iq_axes[4, :]:
         ax.grid(which="both", linestyle=":")
         ax.set_ylabel("Cumulative Bit Errors")
         ax.set_xlabel("Symbol Time [nT]")
