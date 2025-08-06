@@ -1,4 +1,8 @@
-from .precoder import SOQPSKPrecoder
+from .precoder import (
+    SOQPSKDifferentialEncoder,
+    SOQPSKRecursivePrecoder,
+    SOQPSKStandardPrecoder,
+)
 from .pulse_filters import (
     SOQPSK_DENOM,
     SOQPSK_NUMER,
