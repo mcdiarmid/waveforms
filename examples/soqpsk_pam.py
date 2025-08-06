@@ -42,8 +42,6 @@ if __name__ == "__main__":
 
     # Create plots and axes
     fig_eye, iq_axes = plt.subplots(2, 2, figsize=(12, 8), dpi=100)
-    for ax in iq_axes.flatten():
-        ax.grid(which="both", linestyle=":")
 
     # Generate pseudo-symbols
     pseudo_symbols = np.array(
@@ -173,7 +171,12 @@ if __name__ == "__main__":
     pam_approx[:] *= np.exp(1j * np.pi / 4)
     qpsk_esque_signal[sps:] += pam_approx.real[:-sps]
     qpsk_esque_signal[:] += pam_approx.imag * 1j
-    fig_const = plot_constellation(signal=qpsk_esque_signal[sps * 2 - 5 :: sps * 2][1:], n=8192)
+    fig_const = plot_constellation(
+        signal=qpsk_esque_signal[sps * 2 - pam_delay :: sps * 2][1:],
+        n=8192,
+        alpha=0.1,
+        marker="s",
+    )
 
     fig_eye.tight_layout()
     fig_eye.savefig(Path(__file__).parent.parent / "images" / "soqpsk_laurent_decomp.png")
