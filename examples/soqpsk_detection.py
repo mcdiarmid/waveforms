@@ -288,5 +288,5 @@ if __name__ == "__main__":
         ax.legend(loc="upper left", fontsize=8, ncol=1)
 
     fig_eye.tight_layout()
-    fig_eye.savefig(Path(__file__).parent.parent / "images" / "soqpsk_pam.png")
+    fig_eye.savefig(Path(__file__).parent.parent / "images" / "soqpsk_detection.png")
     plt.show()
