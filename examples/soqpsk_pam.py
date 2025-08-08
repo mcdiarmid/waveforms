@@ -31,7 +31,7 @@ DATA_BUFFER = np.packbits(DATA_GEN.generate_sequence())
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     # Constants
-    sps = 10
+    sps = 20
 
     # Bits of information to transmit
     bit_array = np.unpackbits(DATA_BUFFER)
@@ -73,8 +73,26 @@ if __name__ == "__main__":
         freq_pulses = np.angle(modulated_signal[1:] * modulated_signal.conj()[1:]) * sps / np.pi
 
         # Display transmitted and received signal in the time domain
-        iq_ax.plot(normalized_time, modulated_signal.real, "b-", alpha=1.0, label=r"CPM-I")
-        iq_ax.plot(normalized_time, modulated_signal.imag, "r-", alpha=1.0, label=r"CPM-Q")
+        iq_ax.plot(
+            normalized_time,
+            modulated_signal.real,
+            "b-",
+            alpha=1.0,
+            label=r"CPM-I",
+            marker="o",
+            markersize=5,
+            markevery=(int(sps / 2), sps),
+        )
+        iq_ax.plot(
+            normalized_time,
+            modulated_signal.imag,
+            "r-",
+            alpha=1.0,
+            label=r"CPM-Q",
+            marker="o",
+            markersize=5,
+            markevery=(int(sps / 2), sps),
+        )
 
         pulse_ax = iq_ax.twinx()
         pulse_ax.stem(
@@ -171,13 +189,22 @@ if __name__ == "__main__":
     pam_approx[:] *= np.exp(1j * np.pi / 4)
     qpsk_esque_signal[sps:] += pam_approx.real[:-sps]
     qpsk_esque_signal[:] += pam_approx.imag * 1j
+
+    fig_const, ax_const = plt.subplots(1, figsize=(4, 4), dpi=100)
+    ax_const.set_xlim([-2, 2])
+    ax_const.set_ylim([-2, 2])
+    ax_const.set_title("SOQPSK PAM Approximation Constellation")
     fig_const = plot_constellation(
         signal=qpsk_esque_signal[sps * 2 - pam_delay :: sps * 2][1:],
         n=8192,
-        alpha=0.1,
+        axis=ax_const,
+        linestyle=" ",
         marker="s",
     )
 
+    images_dir = Path(__file__).parent.parent / "images"
     fig_eye.tight_layout()
-    fig_eye.savefig(Path(__file__).parent.parent / "images" / "soqpsk_laurent_decomp.png")
+    fig_eye.savefig(images_dir / "soqpsk_laurent_decomp.png")
+    fig_const.tight_layout()
+    fig_const.savefig(images_dir / "soqpsk_pam_k2_constellation.png")
     plt.show()

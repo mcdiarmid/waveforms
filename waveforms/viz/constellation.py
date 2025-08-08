@@ -25,7 +25,7 @@ _CONSTELLATION_DEFAULT_KWARGS = {
 
 class Line2DKwargs(TypedDict):
     linewidth: float | None = None
-    linestyle: float | None = None
+    linestyle: str | None = None
     color: str | None = None
     gapcolor: str | None = None
     marker: str | MarkerStyle | None = None

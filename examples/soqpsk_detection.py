@@ -40,7 +40,6 @@ if __name__ == "__main__":
     pulse_pad = 0.5
     ebn0 = 11.2  # Quasonix RDMS has a 1e-5 BER for SOQPSK-TG @ Eb/N0 = 11.2 dB
     sigma = np.sqrt(sps / np.power(10, ebn0 / 10) / 2)
-    P = 4
 
     # Bits of information to transmit
     bit_array = np.unpackbits(DATA_BUFFER)
@@ -50,7 +49,7 @@ if __name__ == "__main__":
     symbols = symbol_precoder(bit_array)
 
     # Create plots and axes
-    fig_eye, iq_axes = plt.subplots(5, 2, figsize=(12, 12), dpi=100)
+    fig_eye, iq_axes = plt.subplots(4, 2, figsize=(12, 12), dpi=100)
     for ax in iq_axes.flatten():
         ax.grid(which="both", linestyle=":")
 
@@ -65,16 +64,15 @@ if __name__ == "__main__":
 
     # Simulate the following SOQPSK Waveforms
     pulses_colors_labels = (
-        (freq_pulse_soqpsk_mil(sps=sps), "MIL", 1 / P),
-        (freq_pulse_soqpsk_tg(sps=sps), "TG", 1 / P),
+        (freq_pulse_soqpsk_mil(sps=sps), "MIL", 1 / 4),
+        (freq_pulse_soqpsk_tg(sps=sps), "TG", 1 / 4),
     )
     for i, (pulse_filter, label, mod_index) in enumerate(pulses_colors_labels):
         # Assign axes
         iq_ax: Axes = iq_axes[0, i]
         mf_ax: Axes = iq_axes[1, i]
         psd_ax: Axes = iq_axes[2, i]
-        rho_ax: Axes = iq_axes[3, i]
-        errors_ax: Axes = iq_axes[4, i]
+        errors_ax: Axes = iq_axes[3, i]
 
         # Modulate the input symbols
         normalized_time, modulated_signal = cpm_modulate(
@@ -84,7 +82,7 @@ if __name__ == "__main__":
             sps=sps,
         )
         noise = generate_complex_awgn(sigma, modulated_signal.size, rng)
-        modulated_signal[:] *= np.exp(+3j * np.pi / 4)
+        modulated_signal[:] *= np.exp(-1j * np.pi / 4)
         freq_pulses = np.angle(modulated_signal[1:] * modulated_signal.conj()[1:]) * sps / np.pi
 
         # Received signal
@@ -165,10 +163,9 @@ if __name__ == "__main__":
         for sym_idx in range(num_symbols):
             for k in range(k_max):
                 # Zero-pad all to length d_max for alignment
-                rk = np.concatenate((rho[k], np.zeros(d_max - rho[k].size)))
                 mf_outputs_pam[sym_idx, :] += np.convolve(
                     received_signal,
-                    rk,
+                    rho[k],
                     mode="same",
                 ) * np.conj(pseudo_symbols[k, sym_idx])
             sym = 2 * (sym_idx - 1)
@@ -177,6 +174,8 @@ if __name__ == "__main__":
                 mf_outputs_pam[sym_idx, :].real,
                 label=f"MF Re[{sym:+}]",
                 linestyle="-",
+                marker="s",
+                markevery=(0 if label == "TG" else sps, sps),
             )
             mf_ax.plot(
                 normalized_time,
@@ -184,6 +183,8 @@ if __name__ == "__main__":
                 label=f"MF Im[{sym:+}]",
                 color=line.get_color(),
                 linestyle="--",
+                marker="s",
+                markevery=(0 if label == "TG" else sps, sps),
             )
 
         # Initialize FSM
@@ -237,18 +238,6 @@ if __name__ == "__main__":
                 label=detector_type,
             )
 
-        # Plot Rho pulses used for PAM Approximation
-        for k, rho_k, fmt in zip(range(k_max), rho, ("b-", "g--")):
-            t = np.linspace(0, (rho_k.size - 1) / sps, num=rho_k.size)
-            rho_ax.plot(
-                t,
-                rho_k,
-                fmt,
-                label=rf"SOQPSK-{label} $\rho_{k}(t)$",
-            )
-
-        rho_ax.set_xlim(0, (max(rho, key=np.size).size - 1) / sps)
-
     for ax in iq_axes[0, :]:
         ax: Axes
         ax.grid(which="both", linestyle=":")
@@ -275,11 +264,7 @@ if __name__ == "__main__":
         psd_ax.xaxis.set_major_locator(MultipleLocator(0.5))
         psd_ax.grid(which="both", linestyle=":")
 
-    for rho_ax in iq_axes[3, :]:
-        rho_ax.grid(which="both", linestyle=":")
-        rho_ax.legend()
-
-    for ax in iq_axes[4, :]:
+    for ax in iq_axes[3, :]:
         ax.grid(which="both", linestyle=":")
         ax.set_ylabel("Cumulative Bit Errors")
         ax.set_xlabel("Symbol Time [nT]")
