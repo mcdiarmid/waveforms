@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.ticker import MultipleLocator
+from numpy.typing import NDArray
 
 from waveforms.cpm.modulate import cpm_modulate
 from waveforms.cpm.pamapprox import rho_pulses
@@ -41,7 +42,7 @@ if __name__ == "__main__":
     symbols = symbol_precoder(bit_array)
 
     # Create plots and axes
-    fig_eye, iq_axes = plt.subplots(2, 2, figsize=(12, 8), dpi=100)
+    fig_eye, iq_axes = plt.subplots(3, 2, figsize=(12, 8), dpi=100)
 
     # Generate pseudo-symbols
     pseudo_symbols = np.array(
@@ -61,6 +62,7 @@ if __name__ == "__main__":
         # Assign axes
         iq_ax: Axes = iq_axes[0, i]
         rho_ax: Axes = iq_axes[1, i]
+        mf_ax: Axes = iq_axes[2, i]
 
         # Modulate the input symbols
         normalized_time, modulated_signal = cpm_modulate(
@@ -70,7 +72,6 @@ if __name__ == "__main__":
             sps=sps,
         )
         modulated_signal[:] *= np.exp(+1j * np.pi / 4)
-        freq_pulses = np.angle(modulated_signal[1:] * modulated_signal.conj()[1:]) * sps / np.pi
 
         # Display transmitted and received signal in the time domain
         iq_ax.plot(
@@ -101,15 +102,8 @@ if __name__ == "__main__":
             bottom=0,
             markerfmt="ko",
             linefmt="k-",
-            basefmt=" ",
+            basefmt="k",
             label="Symbol",
-        )
-        pulse_ax.plot(
-            normalized_time[:-1],
-            freq_pulses,
-            "k-",
-            alpha=0.4,
-            label="Frequency Pulses",
         )
         pulse_ax.set_ylim(-np.pi / 2, np.pi / 2)
 
@@ -141,22 +135,51 @@ if __name__ == "__main__":
         # Re-construct signal from PAM pulses following Laurent Decomposition principles
         num_points = (symbols.size + 1) * sps
         pseudo_symbols_interpolated = np.zeros((k_max, num_points), dtype=np.complex128)
-        pam_approx = np.zeros_like(modulated_signal)
+        pam_approx = np.zeros(len(symbols)*sps + d_max + 1, dtype=np.complex128)
         symbol_indicies = (symbols / 2 + 1).astype(np.int8)
 
         # Cumulative phase state from symbol
         phase_index = np.cumsum(np.concatenate([[2], symbols], dtype=np.int32))
         phase_state = np.exp(1j * phase_index * np.pi / 4).round()
 
-        # PAM Approximation of a CPM signal
-        for k in range(k_max):
-            delay = int((d_max - rho[k].size) / 2)
-            pseudo_symbols_interpolated[k, sps - delay : -1 - delay : sps] = (
-                np.take(pseudo_symbols[k], symbol_indicies) * phase_state[:-1]
+        # Plot the matched filters
+        matched_filters: list[NDArray[np.complex128]] = []
+        t = np.linspace(0, (d_max - 1) / sps, num=d_max)
+        for j in range(num_symbols)[::-1]:
+            matched_filter = np.zeros(d_max, dtype=np.complex128)
+            for k in range(k_max):
+                matched_filter[:rho[k].size] += np.conj(pseudo_symbols[k][j]) * rho[k]
+            line, = mf_ax.plot(
+                t,
+                matched_filter.real,
+                label=rf"$H_{{{j-1:+}}}(t)$",
+                linestyle="-",
+                linewidth=1+j,
             )
-            pam_approx[:] += np.convolve(pseudo_symbols_interpolated[k, :], rho[k], mode="same")
+            mf_ax.plot(
+                t,
+                matched_filter.imag,
+                linestyle="--",
+                linewidth=1+j,
+                color=line.get_color(),
+            )
+            matched_filters.append(matched_filter)
 
-        pam_delay = int(sps // 2)
+        # PAM Approximation of a CPM signal
+        for idx, symbol in enumerate(symbols):
+            symbol_idx = int(symbol / 2) + 1
+            pam_approx[idx*sps:idx*sps + d_max] += phase_state[idx] * matched_filters[symbol_idx]
+
+        # Alternatively, via convolution of rho[k] against an array of pseudo symbols zero-filled to sps
+        # for k in range(k_max):
+        #     delay = int((d_max - rho[k].size) / 2)
+        #     pseudo_symbols_interpolated[k, sps - delay : -1 - delay : sps] = (
+        #         np.take(pseudo_symbols[k], symbol_indicies) * phase_state[:-1]
+        #     )
+        #     pam_approx[:] += np.convolve(pseudo_symbols_interpolated[k, :], rho[k], mode="same")
+
+        pam_approx = pam_approx[sps*L:-2]
+        pam_delay = int((d_max + sps) // 2)
         iq_ax.plot(
             normalized_time[pam_delay:],
             pam_approx.real[:-pam_delay],
@@ -185,6 +208,10 @@ if __name__ == "__main__":
         rho_ax.grid(which="both", linestyle=":")
         rho_ax.legend()
 
+    for mf_ax in iq_axes[2, :]:
+        mf_ax.grid(which="both", linestyle=":")
+        mf_ax.legend()
+
     qpsk_esque_signal = np.zeros_like(pam_approx)
     pam_approx[:] *= np.exp(1j * np.pi / 4)
     qpsk_esque_signal[sps:] += pam_approx.real[:-sps]
@@ -195,7 +222,7 @@ if __name__ == "__main__":
     ax_const.set_ylim([-2, 2])
     ax_const.set_title("SOQPSK PAM Approximation Constellation")
     fig_const = plot_constellation(
-        signal=qpsk_esque_signal[sps * 2 - pam_delay :: sps * 2][1:],
+        signal=qpsk_esque_signal[sps :: sps * 2][1:-2],
         n=8192,
         axis=ax_const,
         linestyle=" ",

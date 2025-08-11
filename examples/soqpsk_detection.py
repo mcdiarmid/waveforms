@@ -161,13 +161,18 @@ if __name__ == "__main__":
         k_max, num_symbols = pseudo_symbols.shape
         mf_outputs_pam = np.zeros((num_symbols, received_signal.size), dtype=np.complex128)
         for sym_idx in range(num_symbols):
+            # Generate matched filter for ternary symbol
+            matched_filted = np.zeros(d_max, dtype=np.complex128)
             for k in range(k_max):
                 # Zero-pad all to length d_max for alignment
-                mf_outputs_pam[sym_idx, :] += np.convolve(
-                    received_signal,
-                    rho[k],
-                    mode="same",
-                ) * np.conj(pseudo_symbols[k, sym_idx])
+                matched_filted[:rho[k].size] += rho[k] * np.conj(pseudo_symbols[k, sym_idx])
+
+            # Convolve received signal with matched filter
+            mf_outputs_pam[sym_idx, :] += np.convolve(
+                received_signal,
+                matched_filted,
+                mode="same",
+            )
             sym = 2 * (sym_idx - 1)
             (line,) = mf_ax.plot(
                 normalized_time,
