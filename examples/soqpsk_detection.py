@@ -165,7 +165,7 @@ if __name__ == "__main__":
             matched_filted = np.zeros(d_max, dtype=np.complex128)
             for k in range(k_max):
                 # Zero-pad all to length d_max for alignment
-                matched_filted[:rho[k].size] += rho[k] * np.conj(pseudo_symbols[k, sym_idx])
+                matched_filted[: rho[k].size] += rho[k] * np.conj(pseudo_symbols[k, sym_idx])
 
             # Convolve received signal with matched filter
             mf_outputs_pam[sym_idx, :] += np.convolve(
