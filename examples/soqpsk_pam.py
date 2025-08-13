@@ -220,14 +220,11 @@ if __name__ == "__main__":
         # Plot PAM Approximation
         pam_approx = pam_approx[pam_delay : -truncate or None]
         pam_approx_error = np.power(
-            np.abs(pam_approx[:] - modulated_signal[:pam_approx.size]),
+            np.abs(pam_approx[:] - modulated_signal[: pam_approx.size]),
             2,
-        )[d_max : - d_max]  # Crop "incomplete" approximated symbols.
+        )[d_max:-d_max]  # Crop "incomplete" approximated symbols.
         nmse = pam_approx_error.sum() / pam_approx_error.size
-        msg = (
-            f"Calculated NMSE = {nmse:.3e}. "
-            f"Theoretical NMSE = {theoretical_nsme[label]:.3e}."
-        )
+        msg = f"Calculated NMSE = {nmse:.3e}. " f"Theoretical NMSE = {theoretical_nsme[label]:.3e}."
         _logger.info(msg)
 
         iq_ax.plot(
