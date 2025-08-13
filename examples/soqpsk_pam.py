@@ -30,16 +30,27 @@ if TYPE_CHECKING:
 # Set seeds so iterations on implementation can be compared better
 rng = np.random.Generator(np.random.PCG64(seed=1))
 
+
+# PRBS sequence
 PN_DEGREE = 13
 DATA_GEN = PNSequence(PN_DEGREE)
 DATA_BUFFER = np.packbits(DATA_GEN.generate_sequence())
 
 
+# Logger
+_logger = logging.getLogger(__name__)
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
+
     # Constants
-    sps = 20
-    pam_use_superposition = True  # Switch between two equivalent methods of PAM superposition
+    sps = 10
+    pam_use_superposition = False  # Switch between two equivalent methods of PAM superposition
+    theoretical_nsme = {  # From E. Perrins Thesis, pg51
+        "MIL": 0,
+        "TG": 4.26e-3,
+    }
 
     # Bits of information to transmit
     bit_array = np.unpackbits(DATA_BUFFER)
@@ -207,9 +218,21 @@ if __name__ == "__main__":
                 )
 
         # Plot PAM Approximation
+        pam_approx = pam_approx[pam_delay : -truncate or None]
+        pam_approx_error = np.power(
+            np.abs(pam_approx[:] - modulated_signal[:pam_approx.size]),
+            2,
+        )[d_max : - d_max]  # Crop "incomplete" approximated symbols.
+        nmse = pam_approx_error.sum() / pam_approx_error.size
+        msg = (
+            f"Calculated NMSE = {nmse:.3e}. "
+            f"Theoretical NMSE = {theoretical_nsme[label]:.3e}."
+        )
+        _logger.info(msg)
+
         iq_ax.plot(
             normalized_time[: -pam_delay or None],
-            pam_approx.real[pam_delay : -truncate or None],
+            pam_approx.real,
             "b--",
             alpha=0.5,
             linewidth=3,
@@ -217,7 +240,7 @@ if __name__ == "__main__":
         )
         iq_ax.plot(
             normalized_time[: -pam_delay or None],
-            pam_approx.imag[pam_delay : -truncate or None],
+            pam_approx.imag,
             "r--",
             alpha=0.5,
             linewidth=3,
@@ -246,16 +269,23 @@ if __name__ == "__main__":
     qpsk_esque_signal[sps:] += pam_approx.real[:-sps]
     qpsk_esque_signal[:] += pam_approx.imag * 1j
 
+    # Create and format constellation axis
     fig_const, ax_const = plt.subplots(1, figsize=(4, 4), dpi=100)
     ax_const.set_xlim([-2, 2])
     ax_const.set_ylim([-2, 2])
+    ax_const.xaxis.set_major_locator(MultipleLocator(1))
+    ax_const.xaxis.set_minor_locator(MultipleLocator(0.25))
+    ax_const.yaxis.set_major_locator(MultipleLocator(1))
+    ax_const.yaxis.set_minor_locator(MultipleLocator(0.25))
     ax_const.set_title("SOQPSK PAM Approximation Constellation")
-    fig_const = plot_constellation(
+
+    plot_constellation(
         signal=qpsk_esque_signal[:: sps * 2][L:-L],
         n=8192,
         axis=ax_const,
         linestyle=" ",
         marker="s",
+        color="g",
     )
 
     images_dir = Path(__file__).parent.parent / "images"
