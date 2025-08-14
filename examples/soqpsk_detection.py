@@ -6,15 +6,21 @@ import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.ticker import MultipleLocator
 from numpy.typing import NDArray
+from scipy.signal import butter, firwin, lfilter
 
 from waveforms.cpm.modulate import cpm_modulate
 from waveforms.cpm.pamapprox import rho_pulses
 from waveforms.cpm.soqpsk import (
+    RecursiveDD,
+    RecursiveDE,
+    SOQPSKDifferentialDecoder,
+    SOQPSKDifferentialEncoder,
     freq_pulse_soqpsk_mil,
     freq_pulse_soqpsk_tg,
 )
 from waveforms.cpm.trellis.encoder import TrellisEncoder
 from waveforms.cpm.trellis.model import (
+    SOQPSKTrellis4x2,
     SOQPSKTrellis4x2DiffEncoded,
 )
 from waveforms.glfsr import PNSequence
@@ -34,18 +40,55 @@ _logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    # Constants
+    # Signal Processing Constants
     sps = 10
     fft_size = 2**9
-    pulse_pad = 0.5
-    ebn0 = 11.2  # Quasonix RDMS has a 1e-5 BER for SOQPSK-TG @ Eb/N0 = 11.2 dB
+    ebn0 = 9  # Quasonix RDMS has a 1e-5 BER for SOQPSK-TG @ Eb/N0 = 11.2 dB
     sigma = np.sqrt(sps / np.power(10, ebn0 / 10) / 2)
+    filter_type = "firwin"
+
+    # Encoding Constants
+    use_irig_diff_encoding = True
+    use_recursive_diff_encoding = False
+    use_standard_trellis = True
+
+    if use_standard_trellis and not use_irig_diff_encoding and not use_recursive_diff_encoding:
+        _logger.warning(
+            "No differential encoding utilized. "
+            "Trellis detectors susceptible to initial state determining output sequence."
+        )
+
+    # Plotting Constants
+    t_min, t_max = 100, 120
+
+    # Pre-detector filter
+    if filter_type == "butter":
+        order = 5
+        lpf = butter(order, 0.8, btype="low", fs=sps, analog=False)
+        filter_delay = int(sps / 2)
+
+    elif filter_type == "firwin":
+        lpf = firwin(sps * 8, 0.5, window="hamming", fs=sps), [1]
+        filter_delay = int(len(lpf[0]) / 2)
+
+    else:
+        lpf = [1], [1]
+        filter_delay = int(len(lpf[0]) / 2)
 
     # Bits of information to transmit
     bit_array = np.unpackbits(DATA_BUFFER)
+    input_bits = bit_array[:]
 
-    # Convert bits to symbols
-    symbol_precoder = TrellisEncoder(SOQPSKTrellis4x2DiffEncoded)
+    # Map bits of information to ternary symbols
+    symbol_precoder = TrellisEncoder(
+        SOQPSKTrellis4x2 if use_standard_trellis else SOQPSKTrellis4x2DiffEncoded
+    )
+    if use_irig_diff_encoding:
+        bit_array = SOQPSKDifferentialEncoder()(bit_array)
+
+    if use_recursive_diff_encoding and use_standard_trellis:
+        bit_array = RecursiveDE()(bit_array)
+
     symbols = symbol_precoder(bit_array)
 
     # Create plots and axes
@@ -87,26 +130,66 @@ if __name__ == "__main__":
 
         # Received signal
         unfiltered_signal: NDArray[np.complex128] = modulated_signal + noise
-        received_signal = unfiltered_signal
+        received_signal: NDArray[np.complex128] = lfilter(*lpf, unfiltered_signal)
 
         # Display transmitted and received signal in the time domain
-        iq_ax.plot(normalized_time, modulated_signal.real, "b-", alpha=1.0, label=r"Re[$s(t)]$")
-        iq_ax.plot(normalized_time, unfiltered_signal.real, "b-", alpha=0.4, label=r"$Re[s(t)+N]$")
-        iq_ax.plot(normalized_time, modulated_signal.imag, "r-", alpha=1.0, label=r"Im[$s(t)]$")
-        iq_ax.plot(normalized_time, unfiltered_signal.imag, "r-", alpha=0.4, label=r"$Im[s(t)+N]$")
+        iq_ax.plot(
+            normalized_time[t_min * sps : t_max * sps],
+            modulated_signal.real[t_min * sps : t_max * sps],
+            "b-",
+            alpha=1.0,
+            label=r"Re[$s(t)]$",
+        )
+        iq_ax.plot(
+            normalized_time[t_min * sps : t_max * sps],
+            modulated_signal.imag[t_min * sps : t_max * sps],
+            "r-",
+            alpha=1.0,
+            label=r"Im[$s(t)]$",
+        )
+
+        # Unfiltered Signal
+        iq_ax.plot(
+            normalized_time[t_min * sps : t_max * sps],
+            unfiltered_signal.real[t_min * sps : t_max * sps],
+            "b-",
+            alpha=0.2,
+            label=r"$Re[s(t)+N]$",
+        )
+        iq_ax.plot(
+            normalized_time[t_min * sps : t_max * sps],
+            unfiltered_signal.imag[t_min * sps : t_max * sps],
+            "r-",
+            alpha=0.2,
+            label=r"$Im[s(t)+N]$",
+        )
+
+        # Filtered Signal
+        iq_ax.plot(
+            normalized_time[: -filter_delay or None][t_min * sps : t_max * sps],
+            received_signal.real[filter_delay:][t_min * sps : t_max * sps],
+            "b-",
+            alpha=0.4,
+        )
+        iq_ax.plot(
+            normalized_time[: -filter_delay or None][t_min * sps : t_max * sps],
+            received_signal.imag[filter_delay:][t_min * sps : t_max * sps],
+            "r-",
+            alpha=0.4,
+        )
 
         pulse_ax = iq_ax.twinx()
         pulse_ax.stem(
-            normalized_time[sps::sps],
-            symbols / 2,
+            normalized_time[sps::sps][t_min:t_max],
+            symbols[t_min:t_max] / 2,
             markerfmt="ko",
             linefmt="k-",
             basefmt=" ",
             label="Symbol",
         )
         pulse_ax.plot(
-            normalized_time[:-1],
-            freq_pulses,
+            normalized_time[:-1][t_min:t_max],
+            freq_pulses[t_min:t_max],
             "k-",
             alpha=0.4,
             label="Frequency Pulses",
@@ -114,15 +197,22 @@ if __name__ == "__main__":
         pulse_ax.set_ylim(-np.pi / 2, np.pi / 2)
 
         # Display transmitted and received signal PSD to illustrate SNR
-        pxx_tx, freqs = psd_ax.psd(
-            modulated_signal,
+        psd_ax.psd(
+            modulated_signal[: fft_size * 100],
             NFFT=fft_size,
             Fs=sps,
             label="$s(t)$",
             scale_by_freq=False,
         )
-        pxx_specan, freqs = psd_ax.psd(
-            received_signal,
+        psd_ax.psd(
+            noise[: fft_size * 100],
+            NFFT=fft_size,
+            Fs=sps,
+            label="$N(t)$",
+            scale_by_freq=False,
+        )
+        psd_ax.psd(
+            received_signal[: fft_size * 100],
             NFFT=fft_size,
             Fs=sps,
             label="$r(t)$",
@@ -175,16 +265,16 @@ if __name__ == "__main__":
             )
             sym = 2 * (sym_idx - 1)
             (line,) = mf_ax.plot(
-                normalized_time,
-                mf_outputs_pam[sym_idx, :].real,
+                normalized_time[t_min * sps : t_max * sps],
+                mf_outputs_pam[sym_idx, filter_delay:].real[t_min * sps : t_max * sps],
                 label=f"MF Re[{sym:+}]",
                 linestyle="-",
                 marker="s",
                 markevery=(0 if label == "TG" else sps, sps),
             )
             mf_ax.plot(
-                normalized_time,
-                mf_outputs_pam[sym_idx, :].imag,
+                normalized_time[t_min * sps : t_max * sps],
+                mf_outputs_pam[sym_idx, filter_delay:].imag[t_min * sps : t_max * sps],
                 label=f"MF Im[{sym:+}]",
                 color=line.get_color(),
                 linestyle="--",
@@ -192,14 +282,44 @@ if __name__ == "__main__":
                 markevery=(0 if label == "TG" else sps, sps),
             )
 
+        # DETECTION METHODS
+        output_bits_dict = {}
+
+        # SxS Detection
+        constellation_signal: NDArray[np.complex128] = np.zeros_like(received_signal)
+        constellation_signal[sps:] += (received_signal * np.exp(1j * np.pi / 4)).real[:-sps]
+        constellation_signal[:] += (received_signal * np.exp(1j * np.pi / 4)).imag * 1j
+        sxs_output = []
+        sxs_delay = 2
+
+        for n in range(filter_delay + sps, received_signal.size - sps, sps * 2):
+            # Integrate & Dump
+            soft_symbol: complex = constellation_signal[n - sps : n + sps].sum()
+            sxs_output.append(int(soft_symbol.real > 0))
+            sxs_output.append(int(soft_symbol.imag > 0))
+
+        # Decoding Steps
+        sxs_output = np.array(sxs_output, dtype=np.uint8)
+        if use_recursive_diff_encoding or not use_standard_trellis:
+            sxs_output = RecursiveDD()(sxs_output)
+
+        if use_irig_diff_encoding:
+            sxs_output = SOQPSKDifferentialDecoder()(sxs_output)
+
+        # Align with input_bits
+        output_bits_dict["Single Symbol"] = sxs_output[sxs_delay:]
+
         # Initialize FSM
         # WIP - ATTEMPTS TO DO A VA TRACEBACK ON EACH SYMBOL
         va_delay = 2
-        for mf_outputs, detector_type in zip((mf_outputs_pt, mf_outputs_pam), ("PT", "PAM")):
-            det = SOQPSKTrellisDetector(length=4, differantial_encoding=True)
+        delay = int(filter_delay / sps)
+        for mf_outputs, detector_type in zip(
+            (mf_outputs_pt, mf_outputs_pam),
+            ("PT Viterbi", "PAM Viterbi"),
+        ):
+            det = SOQPSKTrellisDetector(length=4, differantial_encoding=not use_standard_trellis)
             output_symbols = []
             output_bits = []
-            delay = 0
 
             # Should replace magic numbers.  Ideally this gets solved with timing recovery.
             if detector_type == "PT":
@@ -209,7 +329,7 @@ if __name__ == "__main__":
 
             for n in range(received_signal.size - det.length * sps):
                 # Placeholder timing recovery, will replace with Non-data-aided method
-                if (n + timing_offset) % sps:
+                if (n + timing_offset + filter_delay) % sps:
                     continue
 
                 # Perform Fixed Length VA Traceback
@@ -218,42 +338,55 @@ if __name__ == "__main__":
                 output_symbols.append(rsyms[va_delay])
                 output_bits.append(rbits[va_delay])
 
-            # Calculate number of errors, and visualize
-            iter_va_output_symbols = np.array(output_symbols[det.length :], dtype=np.int8)
-            iter_va_output_bits = np.array(output_bits[det.length :], dtype=np.uint8)
-            aligned_symbols = symbols[delay + va_delay :]
-            aligned_bits = bit_array[delay + va_delay :]
-            min_size = min(aligned_symbols.size, iter_va_output_symbols.size)
+            # Run decoding steps
+            output_bits = np.array(output_bits, dtype=np.uint8)
+
+            if use_recursive_diff_encoding and use_standard_trellis:
+                output_bits = RecursiveDD()(output_bits)
+
+            if use_irig_diff_encoding:
+                output_bits = SOQPSKDifferentialDecoder()(output_bits)
+
+            # Align with input_bits
+            output_bits_dict[detector_type] = output_bits[det.length + delay - va_delay :]
+
+        # Plot cumulative errors over time and log error metrics
+        for detector_type, output_bits in output_bits_dict.items():
+            # Align input and output bitstreams, count errors, calculate error rate, plot errors
+            min_size = min(len(input_bits), len(output_bits))
             t = np.linspace(0, min_size - 1, num=min_size)
-            (sym_err_idx,) = np.where(
-                iter_va_output_symbols[:min_size] - aligned_symbols[:min_size]
-            )
-            (bit_err_idx,) = np.where(iter_va_output_bits[:min_size] - aligned_bits[:min_size])
-            log_msg = (
-                f"SOQPSK-{label} {detector_type}: "
-                f"Eb/N0 = {ebn0:.2f} dB, "
-                f"SER = {len(sym_err_idx)/min_size:.3E} "
-                f"BER = {len(bit_err_idx)/min_size:.3E}"
-            )
+            bit_err_idx = np.where(output_bits[:min_size] - input_bits[:min_size])[0]
+            ber = len(bit_err_idx) / min_size
+
+            # Handle inverted output (frame sync is responsible for this)
+            if ber > (1 - ber):
+                ber = 1 - ber
+                output_bits[:] = 1 - output_bits[:]
+                bit_err_idx = np.where(output_bits[:min_size] - input_bits[:min_size])[0]
+
+            # Log BER and plot cumulative errors
+            log_msg = f"SOQPSK-{label} {detector_type}: Eb/N0 = {ebn0:.2f} dB, BER = {ber:.3e}"
             _logger.info(log_msg)
             errors_ax.plot(
                 t[bit_err_idx],
                 np.cumsum(np.ones(bit_err_idx.shape)),
                 marker="x",
-                label=detector_type,
+                label=f"{detector_type} (BER = {ber:.3e})",
             )
 
     for ax in iq_axes[0, :]:
         ax: Axes
         ax.grid(which="both", linestyle=":")
-        ax.set_xlim([100, 130])
+        ax.set_xlim([t_min, t_max])
+        ax.set_ylim([-4, 4])
         ax.legend(loc="upper center", fontsize=8, ncols=4)
         ax.xaxis.set_major_locator(MultipleLocator(5))
         ax.xaxis.set_minor_locator(MultipleLocator(1))
 
     for ax in iq_axes[1, :]:
         ax: Axes
-        ax.set_xlim([100, 130])
+        ax.set_xlim([t_min, t_max])
+        ax.set_ylim([-sps * 2, sps * 2])
         ax.legend(loc="upper center", fontsize=8, ncols=3)
         ax.xaxis.set_major_locator(MultipleLocator(5))
         ax.xaxis.set_minor_locator(MultipleLocator(1))
