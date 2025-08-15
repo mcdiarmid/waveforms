@@ -315,8 +315,7 @@ if __name__ == "__main__":
         for n in range(filter_delay + sps, received_signal.size - sps, sps * 2):
             # Integrate & Dump
             soft_symbol: complex = constellation_signal[
-                n - int(id_filter_n / 2) :
-                n + id_filter_n - int(id_filter_n / 2)
+                n - int(id_filter_n / 2) : n + id_filter_n - int(id_filter_n / 2)
             ].sum()
             constellation_out.append(soft_symbol / id_filter_n)
             sxs_output.append(int(soft_symbol.real > 0))
