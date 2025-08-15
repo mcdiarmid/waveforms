@@ -6,7 +6,7 @@ import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.ticker import MultipleLocator
 from numpy.typing import NDArray
-from scipy.signal import butter, firwin, lfilter
+from scipy.signal import butter, filtfilt, firwin, lfilter
 
 from waveforms.cpm.modulate import cpm_modulate
 from waveforms.cpm.pamapprox import rho_pulses
@@ -26,6 +26,7 @@ from waveforms.cpm.trellis.model import (
 from waveforms.glfsr import PNSequence
 from waveforms.noise import generate_complex_awgn
 from waveforms.viterbi.algorithm import SOQPSKTrellisDetector
+from waveforms.viz import plot_constellation
 
 
 # Set seeds so iterations on implementation can be compared better
@@ -45,7 +46,7 @@ if __name__ == "__main__":
     fft_size = 2**9
     ebn0 = 9  # Quasonix RDMS has a 1e-5 BER for SOQPSK-TG @ Eb/N0 = 11.2 dB
     sigma = np.sqrt(sps / np.power(10, ebn0 / 10) / 2)
-    filter_type = "firwin"
+    filter_type = "hamming"
 
     # Encoding Constants
     use_irig_diff_encoding = True
@@ -62,18 +63,34 @@ if __name__ == "__main__":
     t_min, t_max = 100, 120
 
     # Pre-detector filter
+    filter_delay = 0
+    filter_method = lfilter
+
+    # IIR Filter options
     if filter_type == "butter":
         order = 5
-        lpf = butter(order, 0.8, btype="low", fs=sps, analog=False)
-        filter_delay = int(sps / 2)
+        lpf = butter(order, 0.45, btype="low", fs=sps, analog=False)
+        filter_method = filtfilt
+        _logger.warning(
+            "Using filtfilt for IIR filter to linearize phase response.  "
+            "This filtering method is non-trivial to implement in real-time systems."
+        )
 
-    elif filter_type == "firwin":
-        lpf = firwin(sps * 8, 0.5, window="hamming", fs=sps), [1]
-        filter_delay = int(len(lpf[0]) / 2)
+    # FIR Filter options - by default generate forward-reverse filter to linearize phase response
+    elif filter_type == "hamming":
+        fir_taps = firwin(sps * 8 + 1, 0.5, window="hamming", fs=sps)
+        forward_reverse_taps = np.convolve(fir_taps, fir_taps[::-1], mode="full")
+        lpf = forward_reverse_taps, [1]
+        filter_delay = int(len(forward_reverse_taps) / 2)
+
+    elif filter_type == "kaiser":
+        fir_taps = firwin(sps * 8 + 1, 0.5, window=("kaiser", 8), fs=sps)
+        forward_reverse_taps = np.convolve(fir_taps, fir_taps[::-1], mode="full")
+        lpf = forward_reverse_taps, [1]
+        filter_delay = int(len(forward_reverse_taps) / 2)
 
     else:
-        lpf = [1], [1]
-        filter_delay = int(len(lpf[0]) / 2)
+        lpf = None
 
     # Bits of information to transmit
     bit_array = np.unpackbits(DATA_BUFFER)
@@ -130,7 +147,8 @@ if __name__ == "__main__":
 
         # Received signal
         unfiltered_signal: NDArray[np.complex128] = modulated_signal + noise
-        received_signal: NDArray[np.complex128] = lfilter(*lpf, unfiltered_signal)
+        received_signal: NDArray[np.complex128]
+        received_signal = filter_method(*lpf, unfiltered_signal) if lpf else unfiltered_signal[:]
 
         # Display transmitted and received signal in the time domain
         iq_ax.plot(
@@ -291,10 +309,16 @@ if __name__ == "__main__":
         constellation_signal[:] += (received_signal * np.exp(1j * np.pi / 4)).imag * 1j
         sxs_output = []
         sxs_delay = 2
+        id_filter_n = sps
+        constellation_out = []
 
         for n in range(filter_delay + sps, received_signal.size - sps, sps * 2):
             # Integrate & Dump
-            soft_symbol: complex = constellation_signal[n - sps : n + sps].sum()
+            soft_symbol: complex = constellation_signal[
+                n - int(id_filter_n / 2) :
+                n + id_filter_n - int(id_filter_n / 2)
+            ].sum()
+            constellation_out.append(soft_symbol / id_filter_n)
             sxs_output.append(int(soft_symbol.real > 0))
             sxs_output.append(int(soft_symbol.imag > 0))
 
@@ -409,6 +433,26 @@ if __name__ == "__main__":
         ax.set_ylim(0, None)
         ax.set_xlim(0, symbols.size - 1)
         ax.legend(loc="upper left", fontsize=8, ncol=1)
+
+    # Create and format constellation axis
+    fig_const, ax_const = plt.subplots(1, figsize=(4, 4), dpi=100)
+    ax_const.set_xlim([-1.5, +1.5])
+    ax_const.set_ylim([-1.5, +1.5])
+    ax_const.xaxis.set_major_locator(MultipleLocator(1))
+    ax_const.xaxis.set_minor_locator(MultipleLocator(0.25))
+    ax_const.yaxis.set_major_locator(MultipleLocator(1))
+    ax_const.yaxis.set_minor_locator(MultipleLocator(0.25))
+    ax_const.set_title("SOQPSK SxS I&D Constellation")
+
+    plot_constellation(
+        signal=np.array(constellation_out, dtype=np.complex128),
+        n=8192,
+        axis=ax_const,
+        linestyle=" ",
+        marker="s",
+        markersize=1,
+        color="b",
+    )
 
     fig_eye.tight_layout()
     fig_eye.savefig(Path(__file__).parent.parent / "images" / "soqpsk_detection.png")
