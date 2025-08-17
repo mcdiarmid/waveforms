@@ -237,10 +237,10 @@ if __name__ == "__main__":
         pt_end = int((L + truncation) * sps / 2) + 1
         truncated_phase_pulse = q[pt_start:pt_end]
         mf_outputs_pt = np.zeros((3, received_signal.size), dtype=np.complex128)
-        for i in range(3):
-            mf_outputs_pt[i, :] = np.convolve(
+        for sym_idx in range(3):
+            mf_outputs_pt[sym_idx, :] = np.convolve(
                 received_signal,
-                np.exp(-2j * np.pi * mod_index * 2 * (i - 1) * truncated_phase_pulse),
+                np.exp(-2j * np.pi * mod_index * 2 * (sym_idx - 1) * truncated_phase_pulse),
                 mode="same",
             )
 
