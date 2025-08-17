@@ -267,7 +267,7 @@ if __name__ == "__main__":
     qpsk_esque_signal[:] += pam_approx.imag * 1j
 
     # Create and format constellation axis
-    fig_const, ax_const = plt.subplots(1, figsize=(4, 4), dpi=100)
+    fig_const, ax_const = plt.subplots(1, figsize=(5, 5), dpi=100)
     ax_const.set_xlim([-2, 2])
     ax_const.set_ylim([-2, 2])
     ax_const.xaxis.set_major_locator(MultipleLocator(1))

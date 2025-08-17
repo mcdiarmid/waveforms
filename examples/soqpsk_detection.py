@@ -44,7 +44,7 @@ if __name__ == "__main__":
     # Signal Processing Constants
     sps = 10
     fft_size = 2**9
-    ebn0 = 9  # Quasonix RDMS has a 1e-5 BER for SOQPSK-TG @ Eb/N0 = 11.2 dB
+    ebn0 = 10  # Quasonix RDMS has a 1e-5 BER for SOQPSK-TG @ Eb/N0 = 11.2 dB
     sigma = np.sqrt(sps / np.power(10, ebn0 / 10) / 2)
     filter_type = "hamming"
 
@@ -143,7 +143,6 @@ if __name__ == "__main__":
         )
         noise = generate_complex_awgn(sigma, modulated_signal.size, rng)
         modulated_signal[:] *= np.exp(-1j * np.pi / 4)
-        freq_pulses = np.angle(modulated_signal[1:] * modulated_signal.conj()[1:]) * sps / np.pi
 
         # Received signal
         unfiltered_signal: NDArray[np.complex128] = modulated_signal + noise
@@ -205,13 +204,6 @@ if __name__ == "__main__":
             basefmt=" ",
             label="Symbol",
         )
-        pulse_ax.plot(
-            normalized_time[:-1][t_min:t_max],
-            freq_pulses[t_min:t_max],
-            "k-",
-            alpha=0.4,
-            label="Frequency Pulses",
-        )
         pulse_ax.set_ylim(-np.pi / 2, np.pi / 2)
 
         # Display transmitted and received signal PSD to illustrate SNR
@@ -245,21 +237,12 @@ if __name__ == "__main__":
         pt_end = int((L + truncation) * sps / 2) + 1
         truncated_phase_pulse = q[pt_start:pt_end]
         mf_outputs_pt = np.zeros((3, received_signal.size), dtype=np.complex128)
-        mf_outputs_pt[0, :] = np.convolve(
-            received_signal,
-            np.exp(-2j * np.pi * mod_index * -2 * truncated_phase_pulse),
-            mode="same",
-        )
-        mf_outputs_pt[1, :] = np.convolve(
-            received_signal,
-            np.exp(-2j * np.pi * mod_index * +0 * truncated_phase_pulse),
-            mode="same",
-        )
-        mf_outputs_pt[2, :] = np.convolve(
-            received_signal,
-            np.exp(-2j * np.pi * mod_index * +2 * truncated_phase_pulse),
-            mode="same",
-        )
+        for i in range(3):
+            mf_outputs_pt[i, :] = np.convolve(
+                received_signal,
+                np.exp(-2j * np.pi * mod_index * 2 * (i - 1) * truncated_phase_pulse),
+                mode="same",
+            )
 
         # PAM De-composition rho pulses/matched filters
         rho = rho_pulses(pulse_filter, mod_index, sps, k_max=2)
@@ -434,14 +417,13 @@ if __name__ == "__main__":
         ax.legend(loc="upper left", fontsize=8, ncol=1)
 
     # Create and format constellation axis
-    fig_const, ax_const = plt.subplots(1, figsize=(4, 4), dpi=100)
+    fig_const, ax_const = plt.subplots(1, figsize=(5, 5), dpi=100)
     ax_const.set_xlim([-1.5, +1.5])
     ax_const.set_ylim([-1.5, +1.5])
     ax_const.xaxis.set_major_locator(MultipleLocator(1))
     ax_const.xaxis.set_minor_locator(MultipleLocator(0.25))
     ax_const.yaxis.set_major_locator(MultipleLocator(1))
     ax_const.yaxis.set_minor_locator(MultipleLocator(0.25))
-    ax_const.set_title("SOQPSK SxS I&D Constellation")
 
     plot_constellation(
         signal=np.array(constellation_out, dtype=np.complex128),
@@ -452,7 +434,9 @@ if __name__ == "__main__":
         markersize=1,
         color="b",
     )
+    ax_const.set_title(f"SOQPSK SxS I&D Constellation ($E_b/N_0 = {ebn0:.1f}$ dB)")
 
+    images_dir = Path(__file__).parent.parent / "images"
     fig_eye.tight_layout()
-    fig_eye.savefig(Path(__file__).parent.parent / "images" / "soqpsk_detection.png")
+    fig_eye.savefig(images_dir / "soqpsk_detection.png")
     plt.show()
